@@ -25,7 +25,7 @@ npm run build
 
 ## Render static site
 
-The included `render.yaml` creates a static site, builds with `npm ci && npm run build`, and rewrites client-side routes to `index.html`. When prompted or in the Render dashboard, set:
+The included `render.yaml` creates a static site, builds with `npm ci && npm run build`, and rewrites `/billing` and other client-side routes to `index.html`. If the service was created directly in the Render Dashboard instead of from this Blueprint, add a **Rewrite** rule under the static site's **Redirects/Rewrites** settings: source `/billing`, destination `/index.html`. Also add a catch-all SPA rule with source `/*` and destination `/index.html`. When prompted or in the Render dashboard, set:
 
 - `VITE_API_BASE_URL`: the public backend origin, such as `https://your-api.onrender.com` (no trailing slash).
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`: the web OAuth client ID, if Google sign-in is enabled.
