@@ -27,7 +27,7 @@ npm run build
 
 The included `render.yaml` creates a static site, builds with `npm ci && npm run build`, and rewrites `/billing` and other client-side routes to `index.html`. If the service was created directly in the Render Dashboard instead of from this Blueprint, add a **Rewrite** rule under the static site's **Redirects/Rewrites** settings: source `/billing`, destination `/index.html`. Also add a catch-all SPA rule with source `/*` and destination `/index.html`. When prompted or in the Render dashboard, set:
 
-- `VITE_API_BASE_URL`: the public backend origin, such as `https://your-api.onrender.com` (no trailing slash).
+- `VITE_API_BASE_URL`: the public backend origin, such as `https://your-api.onrender.com` (no trailing slash). This is used by both the app API and Pico's study chat.
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`: the web OAuth client ID, if Google sign-in is enabled.
 
 After deployment, set `ALLOWED_ORIGINS` on the backend to this site's exact HTTPS origin. Keep API keys and other secrets on the backend; Vite variables are public and included in the browser bundle.
