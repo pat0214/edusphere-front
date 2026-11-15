@@ -19,6 +19,7 @@ type PathData = {
   course: { title: string; level: string } | null;
   questions?: PracticeQuestion[];
   hasPlacement?: boolean;
+  allCoursesComplete?: boolean;
   badge?: EarnedBadge | null;
 };
 
@@ -52,6 +53,8 @@ export default function PathPage() {
       pathRes.setData(r.data);
       if (r.data.badge) setBadge([r.data.badge]);
       toast.ok(r.message);
+    } else if (r.success && r.data.allCoursesComplete) {
+      pathRes.setData(r.data);
     } else {
       toast.err(r.success ? "The learning path could not be created. Please try again." : r.message);
     }
@@ -69,16 +72,26 @@ export default function PathPage() {
     return (
       <EmptyState
         icon={<Gauge size={20} />}
-        title={pathRes.error ? "Could not load your path" : generating ? "Building your learning path" : "No path yet"}
+        title={pathRes.error
+          ? "Could not load your path"
+          : generating
+            ? "Building your learning path"
+            : data?.allCoursesComplete
+              ? "You’ve completed every available path"
+              : "No path yet"}
         body={pathRes.error
           ? pathRes.error
           : generating
             ? "Your placement is complete. We’re using your results to prepare your lesson sequence."
-            : "Take the placement so we can sequence lessons around your skill gaps."}
+            : data?.allCoursesComplete
+              ? "Great work. Check back when a new course is published, or browse the course catalog."
+              : "Take the placement so we can sequence lessons around your skill gaps."}
         action={
           <div className="flex gap-2 mt-2">
             {pathRes.error ? (
               <button className="btn btn-primary" onClick={() => void pathRes.refetch()}>Try again</button>
+            ) : data?.allCoursesComplete ? (
+              <Link href="/courses" className="btn btn-primary">Browse courses</Link>
             ) : data?.hasPlacement ? (
               <button className="btn btn-primary" disabled={generating} onClick={() => void buildPath()}>
                 {generating ? "Building…" : "Build my path"}
