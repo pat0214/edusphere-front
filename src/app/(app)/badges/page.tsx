@@ -75,7 +75,7 @@ export default function BadgesPage() {
       </div>
 
       <div>
-        <SectionTitle title={`Badges earned â€” ${b.earned.length}/8`} />
+        <SectionTitle title={`Badges earned — ${b.earned.length}/8`} />
         {b.earned.length === 0 ? (
           <p className="text-muted text-sm">Nothing earned yet. Complete a lesson, pass an exercise&apos;s hidden tests, or hold a streak to start.</p>
         ) : (
@@ -85,7 +85,7 @@ export default function BadgesPage() {
                 <BadgeIcon badge={bd} size={44} />
                 <h4 className="font-semibold text-sm mt-3">{bd.name}</h4>
                 <p className="text-muted text-xs mt-1 leading-relaxed">{bd.description}</p>
-                <p className="font-mono text-[10px] text-muted mt-3">{fmtDate(bd.awardedAt)}{bd.xpReward > 0 ? ` Â· +${bd.xpReward} XP` : ""}</p>
+                <p className="font-mono text-[10px] text-muted mt-3">{fmtDate(bd.awardedAt)}{bd.xpReward > 0 ? ` · +${bd.xpReward} XP` : ""}</p>
               </motion.div>
             ))}
           </div>

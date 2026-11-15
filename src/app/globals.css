@@ -287,7 +287,13 @@ input[type="range"].rubric-range::-moz-range-thumb {
 .link { color: var(--primary); }
 .link:hover { text-decoration: underline; }
 
-.monaco-wrap { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.monaco-wrap {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
 
 .certificate-sheet {
   position: relative;

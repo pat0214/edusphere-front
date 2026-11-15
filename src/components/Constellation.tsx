@@ -45,6 +45,32 @@ export function Constellation({ items, onOpen }: { items: PathNode[]; onOpen: (n
     return "var(--line)";
   };
 
+  const formatTitle = (title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) return [""];
+    if (trimmed.length <= 16) return [trimmed];
+
+    const words = trimmed.split(/\s+/);
+    if (words.length === 1) return [trimmed.length > 16 ? `${trimmed.slice(0, 15)}…` : trimmed];
+
+    const lines: string[] = ["", ""];
+    let currentLine = 0;
+    for (const word of words) {
+      const candidate = lines[currentLine] ? `${lines[currentLine]} ${word}` : word;
+      if (candidate.length <= 17) {
+        lines[currentLine] = candidate;
+      } else if (currentLine < 1) {
+        currentLine += 1;
+        lines[currentLine] = word;
+      } else {
+        lines[currentLine] = `${lines[currentLine]} ${word}`.slice(0, 17).trimEnd() + "…";
+        break;
+      }
+    }
+
+    return lines.filter(Boolean);
+  };
+
   return (
     <div ref={containerRef} className="w-full min-w-0">
       <svg width="100%" height={H} viewBox={`0 0 ${width} ${H}`} preserveAspectRatio="xMidYMin meet" role="list" aria-label="Learning path">
@@ -67,6 +93,7 @@ export function Constellation({ items, onOpen }: { items: PathNode[]; onOpen: (n
           const done = n.status === "done";
           const current = n.status === "current";
           const locked = n.status === "locked";
+          const titleLines = formatTitle(n.title);
           return (
             <motion.g key={n.itemId} role="listitem"
               initial={{ opacity: 0, scale: 0.5 }}
@@ -101,11 +128,12 @@ export function Constellation({ items, onOpen }: { items: PathNode[]; onOpen: (n
                   <Lock size={10} strokeWidth={2.5} color="var(--muted)" />
                 </g>
               )}
-              <text x={n.x} y={n.y + 30} textAnchor="middle" fontSize="11" fill="var(--text)" fontWeight={600}
-                style={{ maxWidth: 120 }}>
-                {n.title.length > 22 ? n.title.slice(0, 21) + "…" : n.title}
-              </text>
-              <text x={n.x} y={n.y + 45} textAnchor="middle" fontSize="9.5" fill="var(--muted)" fontFamily="var(--font-mono)">
+              {titleLines.map((line, lineIndex) => (
+                <text key={`${n.itemId}-${line}`} x={n.x} y={n.y + 30 + (lineIndex * 12)} textAnchor="middle" fontSize={titleLines.length > 1 ? 9.5 : 11} fill="var(--text)" fontWeight={600}>
+                  {line}
+                </text>
+              ))}
+              <text x={n.x} y={n.y + 30 + (titleLines.length * 12)} textAnchor="middle" fontSize="9.5" fill="var(--muted)" fontFamily="var(--font-mono)">
                 {n.estimatedMinutes} min
               </text>
             </motion.g>

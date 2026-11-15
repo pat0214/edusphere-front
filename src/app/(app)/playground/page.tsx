@@ -475,8 +475,8 @@ export default function PlaygroundPage() {
                 </div>
 
                 <div className="min-w-0">
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="flex gap-1 card-raise p-1 rounded-xl">
+                  <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex gap-1 card-raise p-1 rounded-xl min-w-0">
                       <button onClick={() => setRightTab("console")} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] transition-colors ${rightTab === "console" ? "bg-primary text-white" : "text-muted hover:text-text"}`}>
                         <SquareTerminal size={13} /> Console
                       </button>
@@ -484,7 +484,7 @@ export default function PlaygroundPage() {
                         <Eye size={13} /> Preview
                       </button>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                       {!isHtml && (
                         <button
                           onClick={() => {
