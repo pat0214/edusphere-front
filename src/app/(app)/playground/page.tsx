@@ -433,10 +433,12 @@ export default function PlaygroundPage() {
                 <p className="text-muted text-sm leading-relaxed mt-2.5">{active.prompt}</p>
               </div>}
 
-              <div className="grid xl:grid-cols-2 gap-4">
+              <div className="grid 2xl:grid-cols-2 gap-4">
                 <div className="min-w-0">
-                  <SectionTitle title={freeRun ? `${LANGUAGE_LABELS[active.language] ?? active.language} free practice` : isHtml ? "Markup, styles and script" : "Your solution"} sub={freeRun || isHtml || isCompiledLanguage ? undefined : "must define solve(input)"}
-                    right={<span className="tag font-mono">{code.length.toLocaleString()} chars</span>} />
+                  <div className="min-h-[72px] flex items-end">
+                    <SectionTitle title={freeRun ? `${LANGUAGE_LABELS[active.language] ?? active.language} free practice` : isHtml ? "Markup, styles and script" : "Your solution"} sub={freeRun || isHtml || isCompiledLanguage ? undefined : "must define solve(input)"}
+                      right={<span className="tag font-mono">{code.length.toLocaleString()} chars</span>} />
+                  </div>
                   <div className="monaco-wrap">
                     <Monaco
                       height="420px"
@@ -475,7 +477,7 @@ export default function PlaygroundPage() {
                 </div>
 
                 <div className="min-w-0">
-                  <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                  <div className="mb-5 min-h-[72px] flex flex-wrap content-center items-center justify-between gap-3">
                     <div className="flex gap-1 card-raise p-1 rounded-xl min-w-0">
                       <button onClick={() => setRightTab("console")} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] transition-colors ${rightTab === "console" ? "bg-primary text-white" : "text-muted hover:text-text"}`}>
                         <SquareTerminal size={13} /> Console
