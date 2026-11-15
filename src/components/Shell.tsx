@@ -21,6 +21,7 @@ const NAV = {
     { href: "/path", label: "My Path", icon: Waypoints },
     { href: "/playground", label: "Playground", icon: FlaskConical },
     { href: "/assignments", label: "Assignments", icon: ClipboardCheck },
+    { href: "/classrooms", label: "My Classrooms", icon: Users },
     { href: "/courses", label: "Courses", icon: BookOpen },
     { href: "/review", label: "Peer Review", icon: PenLine },
     { href: "/feedback", label: "Feedback", icon: MessageSquareText },
@@ -32,6 +33,7 @@ const NAV = {
   ],
   instructor: [
     { href: "/instructor", label: "Classroom", icon: BookOpen },
+    { href: "/classrooms", label: "Subject classrooms", icon: Users },
     { href: "/instructor/assignments", label: "Assignments", icon: ClipboardCheck },
     { href: "/instructor/courses", label: "Course builder", icon: BookOpen },
     { href: "/playground", label: "Playground", icon: FlaskConical },
@@ -47,6 +49,7 @@ const NAV = {
     { href: "/admin#courses", label: "Courses & learners", icon: Users },
     { href: "/admin#payments", label: "Payments", icon: Wallet },
     { href: "/admin#ai", label: "AI assistant", icon: Sparkles },
+    { href: "/admin#classrooms", label: "Classrooms & email", icon: Users },
     { href: "/admin#users", label: "User accounts", icon: UserRound },
     { href: "/sessions", label: "Live Sessions", icon: Radio },
   ],

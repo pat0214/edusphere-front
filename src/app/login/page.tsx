@@ -38,6 +38,12 @@ export default function LoginPage() {
     }
     useAuth.getState().setAuth(res.data.user, res.data.access, res.data.refresh);
     toast.ok(`Signed in as ${(res.data.user as { name: string }).name.split(" ")[0]}.`);
+    const inviteToken = sessionStorage.getItem("edu-classroom-invite");
+    if (inviteToken) {
+      sessionStorage.removeItem("edu-classroom-invite");
+      router.replace(`/join/${encodeURIComponent(inviteToken)}`);
+      return;
+    }
     const nextPath = getPostAuthPath(res.data.user);
     router.replace(nextPath);
   };
@@ -45,6 +51,12 @@ export default function LoginPage() {
   const handleGoogleSuccess = (session: GoogleSession) => {
     useAuth.getState().setAuth(session.user, session.access, session.refresh);
     toast.ok("Signed in with Google.");
+    const inviteToken = sessionStorage.getItem("edu-classroom-invite");
+    if (inviteToken) {
+      sessionStorage.removeItem("edu-classroom-invite");
+      router.replace(`/join/${encodeURIComponent(inviteToken)}`);
+      return;
+    }
     router.replace(getPostAuthPath(session.user, { isNew: session.isNew }));
   };
 

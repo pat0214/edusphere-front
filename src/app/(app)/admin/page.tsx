@@ -61,9 +61,22 @@ type AiTutorAdminData = {
     features: { action: string; requests: number; credits: number }[];
   };
 };
+type ClassroomPlatformSettings = {
+  classroomsEnabled: boolean;
+  liveSessionsEnabled: boolean;
+  emailNotificationsEnabled: boolean;
+  maxStudentsPerClassroom: number;
+  maxLiveSessionMinutes: number;
+};
+type ClassroomAdminData = {
+  settings: ClassroomPlatformSettings;
+  usage: { activeClassrooms: number; activeMemberships: number; pendingRequests: number; liveSessions: number; endedSessions: number; joinClicks: number };
+  emailQueue: { pending: number; processing: number; sent: number; failed: number; cancelled: number } | null;
+  classrooms: { id: string; name: string; subject: string; status: string; teacherName: string; studentCount: number; pendingCount: number; createdAt: string }[];
+};
 
 const number = (value: number) => value.toLocaleString();
-const adminSections = ["overview", "activity", "learning", "mastery", "reviews", "courses", "payments", "ai", "users"];
+const adminSections = ["overview", "activity", "learning", "mastery", "reviews", "courses", "payments", "ai", "classrooms", "users"];
 const percent = (part: number, total: number) => total ? Math.round((part / total) * 100) : 0;
 const money = (cents: number, currency: string) => new Intl.NumberFormat(undefined, {
   style: "currency", currency, maximumFractionDigits: 0,
@@ -75,8 +88,11 @@ export default function AdminPage() {
   const users = useApi<AdminUsers>(ready ? "/api/v1/admin/users" : null);
   const analytics = useApi<AdminAnalytics>(ready ? "/api/v1/admin/analytics" : null);
   const aiTutor = useApi<AiTutorAdminData>(ready && activeSection === "ai" ? "/api/v1/admin/ai-tutor" : null);
+  const classroomAdmin = useApi<ClassroomAdminData>(ready && activeSection === "classrooms" ? "/api/v1/admin/classroom-settings" : null);
   const [aiForm, setAiForm] = useState<AiTutorSettings | null>(null);
+  const [classroomForm, setClassroomForm] = useState<ClassroomPlatformSettings | null>(null);
   const [savingAi, setSavingAi] = useState(false);
+  const [savingClassroom, setSavingClassroom] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -99,6 +115,9 @@ export default function AdminPage() {
   useEffect(() => {
     if (aiTutor.data) setAiForm(aiTutor.data.settings);
   }, [aiTutor.data]);
+  useEffect(() => {
+    if (classroomAdmin.data) setClassroomForm(classroomAdmin.data.settings);
+  }, [classroomAdmin.data]);
 
   const filteredUsers = useMemo(() => (users.data?.rows ?? []).filter((user) => {
     const matchesQuery = `${user.name} ${user.email}`.toLowerCase().includes(query.trim().toLowerCase());
@@ -145,6 +164,23 @@ export default function AdminPage() {
     aiTutor.setData(response.data);
     toast.ok(response.message);
   };
+  const saveClassroomSettings = async () => {
+    if (!classroomForm) return;
+    setSavingClassroom(true);
+    const response = await api.patch<ClassroomAdminData>("/api/v1/admin/classroom-settings", classroomForm);
+    setSavingClassroom(false);
+    if (!response.success) { toast.err(response.message); return; }
+    setClassroomForm(response.data.settings);
+    classroomAdmin.setData(response.data);
+    toast.ok(response.message);
+  };
+  const setClassroomStatus = async (id: string, status: "active" | "archived" | "deleted") => {
+    if (status === "deleted" && !window.confirm("Remove this classroom from teacher and student views? It can still be restored by an administrator.")) return;
+    const response = await api.patch(`/api/v1/admin/classrooms/${id}`, { status });
+    if (!response.success) { toast.err(response.message); return; }
+    toast.ok(response.message);
+    void classroomAdmin.refetch();
+  };
 
   return (
     <div className="space-y-9">
@@ -161,6 +197,58 @@ export default function AdminPage() {
           <StatCard label="Course enrollments" value={number(a.learning.enrollments)} sub={`${number(a.content.publishedCourses)} published courses`} accent="var(--amber)" />
           <StatCard label="Active subscriptions" value={number(a.revenue.activeSubscriptions)} sub={`${number(a.revenue.currencies.reduce((sum, row) => sum + row.paidTransactions, 0))} paid transactions`} accent="var(--coral)" />
         </div>
+      </section>}
+
+      {activeSection === "classrooms" && <section id="classrooms" className="space-y-5">
+        <SectionTitle title="Classroom platform" sub="Feature switches and safety limits apply on the backend, not only in the interface." />
+        {classroomAdmin.loading && <SphereLoader label="Loading classroom settings" />}
+        {classroomAdmin.error && <div className="card p-4 text-sm text-coral">{classroomAdmin.error}</div>}
+        {classroomAdmin.data && classroomForm && <>
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+            <StatCard label="Active classrooms" value={number(classroomAdmin.data.usage.activeClassrooms)} />
+            <StatCard label="Active memberships" value={number(classroomAdmin.data.usage.activeMemberships)} accent="var(--mint)" />
+            <StatCard label="Pending approvals" value={number(classroomAdmin.data.usage.pendingRequests)} accent="var(--amber)" />
+            <StatCard label="Live sessions" value={number(classroomAdmin.data.usage.liveSessions)} accent="var(--coral)" />
+          </div>
+          <div className="card p-5 space-y-4">
+            <label className="flex items-center justify-between gap-4 text-sm"><span>Enable subject classrooms</span><input type="checkbox" className="accent-primary size-4" checked={classroomForm.classroomsEnabled} onChange={(event) => setClassroomForm({ ...classroomForm, classroomsEnabled: event.target.checked })} /></label>
+            <label className="flex items-center justify-between gap-4 text-sm"><span>Enable Google Meet sessions</span><input type="checkbox" className="accent-primary size-4" checked={classroomForm.liveSessionsEnabled} onChange={(event) => setClassroomForm({ ...classroomForm, liveSessionsEnabled: event.target.checked })} /></label>
+            <label className="flex items-center justify-between gap-4 text-sm"><span>Enable notification email delivery</span><input type="checkbox" className="accent-primary size-4" checked={classroomForm.emailNotificationsEnabled} onChange={(event) => setClassroomForm({ ...classroomForm, emailNotificationsEnabled: event.target.checked })} /></label>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <label className="text-xs text-muted">Maximum students per classroom<input className="input mt-1" type="number" min={1} max={5000} value={classroomForm.maxStudentsPerClassroom} onChange={(event) => setClassroomForm({ ...classroomForm, maxStudentsPerClassroom: Number(event.target.value) })} /></label>
+              <label className="text-xs text-muted">Maximum live-session duration (minutes)<input className="input mt-1" type="number" min={10} max={240} value={classroomForm.maxLiveSessionMinutes} onChange={(event) => setClassroomForm({ ...classroomForm, maxLiveSessionMinutes: Number(event.target.value) })} /></label>
+            </div>
+            <button className="btn btn-primary" disabled={savingClassroom} onClick={() => void saveClassroomSettings()}>{savingClassroom ? "Saving…" : "Save classroom settings"}</button>
+          </div>
+          <div className="card p-5">
+            <SectionTitle title="Email queue" sub="Queue delivery and retries are handled by the configured Render Cron Job." />
+            {classroomAdmin.data.emailQueue ? <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              {Object.entries(classroomAdmin.data.emailQueue).map(([status, count]) => <div key={status} className="rounded-xl bg-raised p-3"><p className="eyebrow">{status}</p><p className="display text-xl font-bold mt-1">{number(count)}</p></div>)}
+            </div> : <p className="text-sm text-muted">Apply migration 008 to enable queued email monitoring.</p>}
+            <p className="text-xs text-muted mt-4">{number(classroomAdmin.data.usage.joinClicks)} recorded Join clicks. This is not a verified Google Meet attendance report.</p>
+          </div>
+          <div className="card overflow-hidden">
+            <div className="p-5 border-b border-line"><SectionTitle title="Classroom management" sub="Latest 200 classrooms, including archived or removed records." /></div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[700px]">
+                <thead><tr className="text-left text-muted text-[11px] border-b border-line"><th className="px-5 py-3 font-normal">Classroom</th><th className="px-3 py-3 font-normal">Teacher</th><th className="px-3 py-3 font-normal">Students</th><th className="px-3 py-3 font-normal">Status</th><th className="px-5 py-3 font-normal">Actions</th></tr></thead>
+                <tbody>{classroomAdmin.data.classrooms.map((classroom) => <tr key={classroom.id} className="border-b border-line/50 last:border-0">
+                  <td className="px-5 py-3"><p className="font-medium">{classroom.name}</p><p className="text-xs text-muted">{classroom.subject}</p></td>
+                  <td className="px-3 py-3">{classroom.teacherName}</td>
+                  <td className="px-3 py-3 font-mono">{classroom.studentCount}{classroom.pendingCount ? ` · ${classroom.pendingCount} pending` : ""}</td>
+                  <td className="px-3 py-3 capitalize">{classroom.status}</td>
+                  <td className="px-5 py-3"><div className="flex gap-2">
+                    {classroom.status === "deleted" ? <button className="btn btn-ghost !px-2 !py-1.5" onClick={() => void setClassroomStatus(classroom.id, "active")}>Restore</button> : <>
+                      <button className="btn btn-ghost !px-2 !py-1.5" onClick={() => void setClassroomStatus(classroom.id, classroom.status === "active" ? "archived" : "active")}>{classroom.status === "active" ? "Archive" : "Reactivate"}</button>
+                      <button className="btn btn-ghost !px-2 !py-1.5 text-coral" onClick={() => void setClassroomStatus(classroom.id, "deleted")}>Remove</button>
+                    </>}
+                  </div></td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+            {classroomAdmin.data.classrooms.length === 0 && <p className="p-5 text-sm text-muted">No classrooms have been created.</p>}
+          </div>
+        </>}
       </section>}
 
       {activeSection === "activity" && <section id="activity" className="grid xl:grid-cols-[1.6fr_1fr] gap-4">

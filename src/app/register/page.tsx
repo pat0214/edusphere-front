@@ -44,6 +44,12 @@ export default function RegisterPage() {
   const handleGoogleSuccess = (session: GoogleSession) => {
     useAuth.getState().setAuth(session.user, session.access, session.refresh);
     toast.ok("Your account is ready.");
+    const inviteToken = sessionStorage.getItem("edu-classroom-invite");
+    if (inviteToken) {
+      sessionStorage.removeItem("edu-classroom-invite");
+      router.replace(`/join/${encodeURIComponent(inviteToken)}`);
+      return;
+    }
     router.replace(getPostAuthPath(session.user, { isNew: session.isNew }));
   };
 

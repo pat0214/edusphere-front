@@ -93,6 +93,7 @@ export const api = {
   get: <T>(path: string) => request<T>(path, { method: "GET" }, false),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body: JSON.stringify(body ?? {}) }, false),
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: "PATCH", body: JSON.stringify(body ?? {}) }, false),
+  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }, false),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: "PUT", body: JSON.stringify(body ?? {}) }, false),
   upload: <T>(path: string, body: FormData) => request<T>(path, { method: "POST", body }, false),
   download: async (path: string) => {

@@ -14,6 +14,8 @@ const Badges = lazy(() => import("@/app/(app)/badges/page"));
 const Billing = lazy(() => import("@/app/(app)/billing/page"));
 const CourseDetail = lazy(() => import("@/app/(app)/courses/[id]/page"));
 const Courses = lazy(() => import("@/app/(app)/courses/page"));
+const ClassroomDetail = lazy(() => import("@/app/(app)/classrooms/[id]/page"));
+const Classrooms = lazy(() => import("@/app/(app)/classrooms/page"));
 const Dashboard = lazy(() => import("@/app/(app)/dashboard/page"));
 const Feedback = lazy(() => import("@/app/(app)/feedback/page"));
 const Instructor = lazy(() => import("@/app/(app)/instructor/page"));
@@ -28,6 +30,7 @@ const Progress = lazy(() => import("@/app/(app)/progress/page"));
 const Review = lazy(() => import("@/app/(app)/review/page"));
 const Sessions = lazy(() => import("@/app/(app)/sessions/page"));
 const Login = lazy(() => import("@/app/login/page"));
+const JoinClassroom = lazy(() => import("@/app/join/[token]/page"));
 const Register = lazy(() => import("@/app/register/page"));
 const VerifyClient = lazy(() => import("@/components/Verify"));
 const VerifyEmail = lazy(() => import("@/app/verify-email/page"));
@@ -119,6 +122,7 @@ function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/join/:token" element={<JoinClassroom />} />
           <Route path="/verify" element={<VerifyRoute />} />
           <Route path="/verify/:code" element={<VerifyRoute />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
@@ -130,6 +134,8 @@ function App() {
             <Route path="/billing" element={<Billing />} />
             <Route path="/courses" element={<Courses />} />
             <Route path="/courses/:id" element={<CourseDetail />} />
+            <Route path="/classrooms" element={<Classrooms />} />
+            <Route path="/classrooms/:id" element={<ClassroomDetail />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/feedback" element={<Feedback />} />
             <Route path="/instructor" element={<Instructor />} />
