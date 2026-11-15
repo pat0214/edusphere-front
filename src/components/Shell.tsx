@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "@/router/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity, BadgeCheck, Bell, BookOpen, ClipboardCheck, Compass, Gauge, Inbox, LayoutDashboard, LogOut, Moon, PenLine,
-  Radio, Sun, Trophy, Users, Wallet, Waypoints, FlaskConical, MessageSquareText, ShieldCheck, UserRound,
+  Radio, Sun, Trophy, Users, Wallet, Waypoints, FlaskConical, MessageSquareText, ShieldCheck, UserRound, Sparkles,
 } from "lucide-react";
 import { Logo, SphereLoader } from "./Logo";
 import { ToastHost, toast } from "./Toasts";
@@ -46,6 +46,7 @@ const NAV = {
     { href: "/admin#reviews", label: "Peer reviews", icon: PenLine },
     { href: "/admin#courses", label: "Courses & learners", icon: Users },
     { href: "/admin#payments", label: "Payments", icon: Wallet },
+    { href: "/admin#ai", label: "AI assistant", icon: Sparkles },
     { href: "/admin#users", label: "User accounts", icon: UserRound },
     { href: "/sessions", label: "Live Sessions", icon: Radio },
   ],

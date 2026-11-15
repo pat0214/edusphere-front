@@ -2,13 +2,14 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "@/router/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Eye, Lock, Play, RotateCcw, Send, SquareTerminal, X } from "lucide-react";
+import { Bot, Check, Eye, Lock, Play, RotateCcw, Send, SquareTerminal, X } from "lucide-react";
 import { SphereLoader } from "@/components/Logo";
 import { PageHeader } from "@/components/ui";
 import { BadgeModal, type EarnedBadge } from "@/components/BadgeModal";
 import { toast } from "@/components/Toasts";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/store";
+import { PlaygroundTutor } from "./PlaygroundTutor";
 
 const Monaco = dynamic(() => import("@monaco-editor/react"), { loading: () => <div className="skeleton h-[420px]" /> });
 const LANGUAGE_LABELS: Record<string, string> = {
@@ -223,6 +224,7 @@ export default function PlaygroundPage() {
   const [badges, setBadges] = useState<EarnedBadge[]>([]);
   const [rightTab, setRightTab] = useState<"console" | "preview">("console");
   const [consoleLines, setConsoleLines] = useState<string[]>([]);
+  const [tutorOpen, setTutorOpen] = useState(false);
 
   const active = exercises?.find((e) => e.id === activeId) ?? null;
   const isHtml = active?.language === "html";
@@ -366,6 +368,17 @@ export default function PlaygroundPage() {
     <div>
       {badges.length > 0 && <BadgeModal badges={badges} onClose={() => setBadges(badges.slice(1))} />}
       <PageHeader title="Playground" sub="Run code in free practice without an assignment, or work through the course exercises. JavaScript runs locally; Python, C, C++, and C# use the configured Judge0 runner." />
+      {active && user?.role === "student" && <PlaygroundTutor
+        key={freeRun ? `free-${active.language}` : active.id}
+        open={tutorOpen}
+        onClose={() => setTutorOpen(false)}
+        exercise={freeRun ? null : { id: active.id, title: active.title, prompt: active.prompt }}
+        language={active.language}
+        code={code}
+        compilerError={run?.stderr ?? ""}
+        testResults={run?.results ?? []}
+        onInsertCode={setCode}
+      />}
 
       {assignment && (
         <div className="card p-5 mb-4 border-primary/30">
@@ -444,7 +457,14 @@ export default function PlaygroundPage() {
                         <p className="text-muted text-sm mt-0.5">must define solve(input)</p>
                       )}
                     </div>
-                    <span className="tag font-mono shrink-0">{code.length.toLocaleString()} chars</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {user?.role === "student" && (
+                        <button type="button" onClick={() => setTutorOpen(true)} className="btn btn-ghost !py-2 !px-2.5 text-xs" aria-label="Open AI Learning Assistant">
+                          <Bot size={14} /> <span className="hidden sm:inline">AI Tutor</span>
+                        </button>
+                      )}
+                      <span className="tag font-mono shrink-0">{code.length.toLocaleString()} chars</span>
+                    </div>
                   </div>
                   <div className="monaco-wrap">
                     <Monaco

@@ -2,14 +2,14 @@
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import confetti from "canvas-confetti";
-import { Award, Bug, Compass, Flame, Footprints, Handshake, Orbit, Zap } from "lucide-react";
+import { Award, Brain, Bug, Compass, Flame, Footprints, Handshake, Orbit, Target, Zap } from "lucide-react";
 import { OrbitMark } from "./Logo";
 
 export type EarnedBadge = { code: string; name: string; description: string; icon: string; accent: string; xpReward: number };
 
 export const BADGE_ICONS: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
   compass: Compass, footprints: Footprints, flame: Flame, bug: Bug,
-  handshake: Handshake, zap: Zap, orbit: Orbit, award: Award,
+  handshake: Handshake, zap: Zap, orbit: Orbit, award: Award, target: Target, brain: Brain,
 };
 
 export const ACCENT_COLOR: Record<string, string> = {

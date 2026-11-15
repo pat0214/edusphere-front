@@ -86,7 +86,7 @@ export default function BadgesPage() {
       </div>
 
       <div>
-        <SectionTitle title={`Badges earned — ${b.earned.length}/8`} />
+        <SectionTitle title={`Badges earned — ${b.earned.length}/${b.earned.length + b.upcoming.length}`} />
         {b.earned.length === 0 ? (
           <p className="text-muted text-sm">Nothing earned yet. Complete a lesson, pass an exercise&apos;s hidden tests, or hold a streak to start.</p>
         ) : (

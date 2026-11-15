@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Activity, CircleDollarSign, Search, ShieldCheck, UserRoundCheck, UserRoundX,
+  Activity, CircleDollarSign, Search, ShieldCheck, Sparkles, UserRoundCheck, UserRoundX,
 } from "lucide-react";
 import { ActivityArea } from "@/components/Charts";
 import { SphereLoader } from "@/components/Logo";
@@ -45,9 +45,25 @@ type AdminAnalytics = {
   topLearners: { id: string; name: string; email: string; xp: number; level: number; lessons: number; certificates: number; badges: number }[];
   popularCourses: { id: string; title: string; published: boolean; enrollments: number; lessons: number; certificates: number }[];
 };
+type AiTutorSettings = {
+  enabled: boolean;
+  dailyCredits: number;
+  costs: { hint: number; error: number; concept: number; pseudocode: number; solution: number };
+  model: string;
+  inputCostPerMillionUsd: number;
+  outputCostPerMillionUsd: number;
+};
+type AiTutorAdminData = {
+  settings: AiTutorSettings;
+  usage: {
+    totalRequests: number; creditsUsed: number; inputTokens: number; outputTokens: number;
+    estimatedCostUsd: number; requestsLast30Days: number;
+    features: { action: string; requests: number; credits: number }[];
+  };
+};
 
 const number = (value: number) => value.toLocaleString();
-const adminSections = ["overview", "activity", "learning", "mastery", "reviews", "courses", "payments", "users"];
+const adminSections = ["overview", "activity", "learning", "mastery", "reviews", "courses", "payments", "ai", "users"];
 const percent = (part: number, total: number) => total ? Math.round((part / total) * 100) : 0;
 const money = (cents: number, currency: string) => new Intl.NumberFormat(undefined, {
   style: "currency", currency, maximumFractionDigits: 0,
@@ -55,13 +71,16 @@ const money = (cents: number, currency: string) => new Intl.NumberFormat(undefin
 
 export default function AdminPage() {
   const { ready } = useRequireAuth("admin");
+  const [activeSection, setActiveSection] = useState("overview");
   const users = useApi<AdminUsers>(ready ? "/api/v1/admin/users" : null);
   const analytics = useApi<AdminAnalytics>(ready ? "/api/v1/admin/analytics" : null);
+  const aiTutor = useApi<AiTutorAdminData>(ready && activeSection === "ai" ? "/api/v1/admin/ai-tutor" : null);
+  const [aiForm, setAiForm] = useState<AiTutorSettings | null>(null);
+  const [savingAi, setSavingAi] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [activeSection, setActiveSection] = useState("overview");
 
   useEffect(() => {
     const syncSection = () => {
@@ -76,6 +95,10 @@ export default function AdminPage() {
       window.removeEventListener("popstate", syncSection);
     };
   }, []);
+
+  useEffect(() => {
+    if (aiTutor.data) setAiForm(aiTutor.data.settings);
+  }, [aiTutor.data]);
 
   const filteredUsers = useMemo(() => (users.data?.rows ?? []).filter((user) => {
     const matchesQuery = `${user.name} ${user.email}`.toLowerCase().includes(query.trim().toLowerCase());
@@ -110,6 +133,17 @@ export default function AdminPage() {
     toast.ok(res.message);
     void users.refetch();
     void analytics.refetch();
+  };
+
+  const saveAiSettings = async () => {
+    if (!aiForm) return;
+    setSavingAi(true);
+    const response = await api.patch<AiTutorAdminData>("/api/v1/admin/ai-tutor", aiForm);
+    setSavingAi(false);
+    if (!response.success) { toast.err(response.message); return; }
+    setAiForm(response.data.settings);
+    aiTutor.setData(response.data);
+    toast.ok(response.message);
   };
 
   return (
@@ -272,6 +306,73 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+      </section>}
+      {activeSection === "ai" && <section id="ai" className="space-y-4">
+        {aiTutor.loading && <SphereLoader label="Loading AI assistant settings" />}
+        {!aiTutor.loading && !aiTutor.data && <p className="text-muted">{aiTutor.error ?? "AI assistant settings are unavailable."}</p>}
+        {aiTutor.data && aiForm && <>
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
+            <StatCard label="Successful requests" value={number(aiTutor.data.usage.totalRequests)} sub={`${number(aiTutor.data.usage.requestsLast30Days)} in the last 30 days`} accent="var(--primary)" />
+            <StatCard label="Credits consumed" value={number(aiTutor.data.usage.creditsUsed)} sub="Successful responses only" accent="var(--amber)" />
+            <StatCard label="Tokens processed" value={number(aiTutor.data.usage.inputTokens + aiTutor.data.usage.outputTokens)} sub={`${number(aiTutor.data.usage.inputTokens)} input · ${number(aiTutor.data.usage.outputTokens)} output`} accent="var(--mint)" />
+            <StatCard label="Estimated provider cost" value={`$${aiTutor.data.usage.estimatedCostUsd.toFixed(4)}`} sub="Based on the rates configured below" accent="var(--coral)" />
+          </div>
+          <div className="card p-5 md:p-6">
+            <SectionTitle title="AI Learning Assistant controls" sub="The Gemini key stays in the backend environment. These settings never expose credentials to students." right={<Sparkles size={16} className="text-primary" />} />
+            <div className="grid md:grid-cols-2 gap-4">
+              <label className="flex items-center justify-between gap-4 rounded-xl bg-raised p-4 text-sm">
+                <span><strong className="block">Assistant enabled</strong><span className="text-xs text-muted">Turn off all student AI requests</span></span>
+                <input type="checkbox" checked={aiForm.enabled} onChange={(event) => setAiForm({ ...aiForm, enabled: event.target.checked })} className="h-4 w-4 accent-primary" />
+              </label>
+              <label className="text-sm">Daily credits per student
+                <input className="input mt-1.5" type="number" min={0} max={1000} value={aiForm.dailyCredits}
+                  onChange={(event) => setAiForm({ ...aiForm, dailyCredits: Number(event.target.value) })} />
+              </label>
+              <label className="text-sm">Gemini model <span className="text-muted">(blank uses GEMINI_MODEL)</span>
+                <input className="input mt-1.5" maxLength={100} value={aiForm.model}
+                  onChange={(event) => setAiForm({ ...aiForm, model: event.target.value })} placeholder="gemini-3.6-flash" />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="text-sm">Input $ / million tokens
+                  <input className="input mt-1.5" type="number" min={0} step="0.0001" value={aiForm.inputCostPerMillionUsd}
+                    onChange={(event) => setAiForm({ ...aiForm, inputCostPerMillionUsd: Number(event.target.value) })} />
+                </label>
+                <label className="text-sm">Output $ / million tokens
+                  <input className="input mt-1.5" type="number" min={0} step="0.0001" value={aiForm.outputCostPerMillionUsd}
+                    onChange={(event) => setAiForm({ ...aiForm, outputCostPerMillionUsd: Number(event.target.value) })} />
+                </label>
+              </div>
+            </div>
+            <div className="mt-5">
+              <p className="eyebrow mb-2">Credit cost by action</p>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {([
+                  ["hint", "Hint"], ["error", "Explain error"], ["concept", "Concept"],
+                  ["pseudocode", "Pseudocode"], ["solution", "Full solution"],
+                ] as const).map(([key, label]) => (
+                  <label key={key} className="text-xs text-muted">{label}
+                    <input className="input mt-1.5" type="number" min={0} max={100} value={aiForm.costs[key]}
+                      onChange={(event) => setAiForm({ ...aiForm, costs: { ...aiForm.costs, [key]: Number(event.target.value) } })} />
+                  </label>
+                ))}
+              </div>
+            </div>
+            <button type="button" disabled={savingAi} onClick={() => void saveAiSettings()} className="btn btn-primary mt-5">
+              {savingAi ? "Saving…" : "Save AI settings"}
+            </button>
+          </div>
+          <div className="card p-5 md:p-6">
+            <SectionTitle title="Usage by feature" sub="Only completed AI responses are included." />
+            <div className="space-y-2">
+              {aiTutor.data.usage.features.length ? aiTutor.data.usage.features.map((feature) => (
+                <div key={feature.action} className="flex items-center justify-between rounded-lg bg-raised px-4 py-3 text-sm">
+                  <span className="capitalize">{feature.action === "solution" ? "Complete solution" : feature.action}</span>
+                  <span className="font-mono text-xs text-muted">{number(feature.requests)} requests · {number(feature.credits)} credits</span>
+                </div>
+              )) : <p className="text-sm text-muted">No successful AI requests yet.</p>}
+            </div>
+          </div>
+        </>}
       </section>}
       {activeSection === "users" && <section>
         <div id="users" className="card p-5 md:p-6">

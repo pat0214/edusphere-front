@@ -9,9 +9,14 @@ type Analytics = {
   xp: number; level: number; nextLevelXp: number;
   streak: { current: number; longest: number };
   mastery: { skill: string; score: number }[];
-  lessonsDone: number; minutesSpent: number; runs: number; badgesCount: number; reviewsGiven: number;
+  lessonsDone: number; minutesSpent: number; runs: number; badgesCount: number; badgesTotal: number; reviewsGiven: number;
   path: { done: number; total: number }; velocity: number;
   activity: { date: string; lessons: number; runs: number }[];
+  aiTutor?: {
+    totalExercisesCompleted: number; solvedIndependently: number; solvedWithAiAssistance: number;
+    successfulAttempts: number; hintsRequested: number; aiCreditsConsumed: number;
+    topicsMastered: string[]; areasToImprove: string[];
+  };
 };
 
 export default function ProgressPage() {
@@ -55,11 +60,31 @@ export default function ProgressPage() {
             <div className="text-sm text-muted space-y-2">
               <p>Complete every item and the system issues a certificate with a public verify code.</p>
               <p className="font-mono text-xs">reviews given: {data.reviewsGiven}</p>
-              <p className="font-mono text-xs">badges: {data.badgesCount}/8</p>
+              <p className="font-mono text-xs">badges: {data.badgesCount}/{data.badgesTotal}</p>
             </div>
           </div>
         </div>
       </div>
+
+      {data.aiTutor && <section className="card p-5 md:p-6">
+        <SectionTitle title="Programming practice & AI learning" sub="AI is a learning aid, not a penalty. Exercise completion counts use recorded successful runs." />
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          <StatCard label="Exercises completed" value={data.aiTutor.totalExercisesCompleted} sub="Unique exercises with a successful recorded run" accent="var(--primary)" />
+          <StatCard label="Solved independently" value={data.aiTutor.solvedIndependently} sub="No successful AI response before first recorded pass" accent="var(--mint)" />
+          <StatCard label="Solved with AI help" value={data.aiTutor.solvedWithAiAssistance} sub="Used the assistant before the first recorded pass" accent="var(--amber)" />
+          <StatCard label="Successful attempts" value={data.aiTutor.successfulAttempts} sub={`${data.aiTutor.hintsRequested} hints · ${data.aiTutor.aiCreditsConsumed} AI credits used`} accent="var(--coral)" />
+        </div>
+        <div className="mt-5 grid md:grid-cols-2 gap-4 text-sm">
+          <div className="rounded-xl bg-raised p-4">
+            <p className="eyebrow mb-2">Topics mastered</p>
+            <p className="text-muted">{data.aiTutor.topicsMastered.length ? data.aiTutor.topicsMastered.join(" · ") : "No topics have reached the 80% mastery mark yet."}</p>
+          </div>
+          <div className="rounded-xl bg-raised p-4">
+            <p className="eyebrow mb-2">Areas to strengthen</p>
+            <p className="text-muted">{data.aiTutor.areasToImprove.length ? data.aiTutor.areasToImprove.join(" · ") : "No current areas below the 60% mastery mark."}</p>
+          </div>
+        </div>
+      </section>}
 
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="card p-6">

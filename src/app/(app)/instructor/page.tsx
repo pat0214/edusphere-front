@@ -7,7 +7,7 @@ import { timeAgo, useApi } from "@/lib/hooks";
 import { useRequireAuth } from "@/components/Shell";
 
 type Instructor = {
-  students: { id: string; name: string; xp: number; level: number; lessons: number; reviewsDone: number; reviewsPending: number; streak: number; avgMastery: number | null }[];
+  students: { id: string; name: string; xp: number; level: number; lessons: number; reviewsDone: number; reviewsPending: number; aiRequests: number; aiCredits: number; streak: number; avgMastery: number | null }[];
   classMastery: { skill: string; avgScore: number }[];
   reviewQueue: { status: string; count: number }[];
 };
@@ -32,7 +32,7 @@ export default function InstructorPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Classroom overview" sub="Aggregates recompute on every load from progress, score, and review records. Students see only their own numbers." />
+      <PageHeader title="Classroom overview" sub="Aggregates recompute on every load from progress, score, review, and AI usage records. AI usage is visible for learning support and does not lower a student's score." />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <div className="card p-5"><p className="eyebrow">Students</p><p className="display text-3xl font-bold mt-2"><CountUp value={d.students.length} /></p></div>
@@ -44,13 +44,14 @@ export default function InstructorPage() {
       <div className="grid lg:grid-cols-5 gap-4">
         <div className="card p-6 lg:col-span-3 overflow-x-auto">
           <SectionTitle title="Students" sub="Sorted by XP · mastery = latest score per skill, averaged" />
-          <table className="w-full text-sm min-w-[560px]">
+          <table className="w-full text-sm min-w-[680px]">
             <thead>
               <tr className="text-left text-muted text-[11px] font-mono border-b border-line">
                 <th className="pb-2.5 font-normal">Student</th>
                 <th className="pb-2.5 font-normal">XP</th>
                 <th className="pb-2.5 font-normal">Mastery</th>
                 <th className="pb-2.5 font-normal">Lessons</th>
+                <th className="pb-2.5 font-normal">AI help</th>
                 <th className="pb-2.5 font-normal">Streak</th>
                 <th className="pb-2.5 font-normal">Reviews</th>
               </tr>
@@ -62,6 +63,7 @@ export default function InstructorPage() {
                   <td className="py-2.5 font-mono">{s.xp.toLocaleString()}</td>
                   <td className="py-2.5 font-mono">{s.avgMastery !== null ? `${s.avgMastery}%` : "—"}</td>
                   <td className="py-2.5 font-mono">{s.lessons}</td>
+                  <td className="py-2.5 font-mono text-xs">{s.aiRequests} chats · {s.aiCredits} credits</td>
                   <td className="py-2.5 font-mono"><span className="flex items-center gap-1 text-amber"><Flame size={11} fill="currentColor" />{s.streak}d</span></td>
                   <td className="py-2.5 font-mono"><span className={s.reviewsPending > 0 ? "text-amber" : "text-mint"}>{s.reviewsDone} done{s.reviewsPending > 0 ? ` · ${s.reviewsPending} due` : ""}</span></td>
                 </motion.tr>

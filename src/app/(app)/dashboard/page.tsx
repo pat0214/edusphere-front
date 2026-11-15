@@ -14,7 +14,7 @@ type Analytics = {
   streak: { current: number; longest: number };
   mastery: { skill: string; score: number }[];
   path: { done: number; total: number };
-  minutesSpent: number; velocity: number; runs: number; badgesCount: number; reviewsGiven: number;
+  minutesSpent: number; velocity: number; runs: number; badgesCount: number; badgesTotal: number; reviewsGiven: number;
 };
 type PathData = { path: { rationale: string } | null; items?: PathNode[]; hasPlacement?: boolean };
 type QueueItem = { assignmentId: string; status: string };
@@ -150,7 +150,7 @@ export default function DashboardPage() {
               { v: a.velocity, suffix: "", label: "lessons / day (14-day pace)", fmt: (v: number) => v.toFixed(1) },
               { v: a.runs, suffix: "", label: "code runs in sandbox", fmt: Math.round },
               { v: a.reviewsGiven, suffix: "", label: "peer reviews submitted", fmt: Math.round },
-              { v: a.badgesCount, suffix: "/8", label: "badges earned", fmt: Math.round },
+              { v: a.badgesCount, suffix: `/${a.badgesTotal}`, label: "badges earned", fmt: Math.round },
             ].map((s) => (
               <div key={s.label} className="card-raise p-4 transition-colors hover:border-primary/40">
                 <p className="display text-2xl font-bold"><CountUp value={typeof s.fmt === "function" && s.fmt !== Math.round ? Math.round(s.v * 10) / 10 : s.fmt(s.v)} suffix={s.suffix} /></p>
