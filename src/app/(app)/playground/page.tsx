@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "@/router/dynamic";
+import Link from "@/router/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bot, Check, Eye, Lock, Play, RotateCcw, Send, SquareTerminal, X } from "lucide-react";
 import { SphereLoader } from "@/components/Logo";
@@ -8,6 +9,7 @@ import { PageHeader } from "@/components/ui";
 import { BadgeModal, type EarnedBadge } from "@/components/BadgeModal";
 import { toast } from "@/components/Toasts";
 import { api } from "@/lib/api";
+import { useApi } from "@/lib/hooks";
 import { useAuth } from "@/lib/store";
 import { PlaygroundTutor } from "./PlaygroundTutor";
 
@@ -213,6 +215,7 @@ function getSavedFreeCode(userId: string | undefined, language: string): string 
 
 export default function PlaygroundPage() {
   const { user, setUser } = useAuth();
+  const tutorSubscription = useApi<{ assistantAvailable: boolean }>("/api/v1/payments/subscription");
   const [exercises, setExercises] = useState<Exercise[] | null>(null);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -225,6 +228,8 @@ export default function PlaygroundPage() {
   const [rightTab, setRightTab] = useState<"console" | "preview">("console");
   const [consoleLines, setConsoleLines] = useState<string[]>([]);
   const [tutorOpen, setTutorOpen] = useState(false);
+
+  const tutorAvailable = tutorSubscription.data?.assistantAvailable === true;
 
   const active = exercises?.find((e) => e.id === activeId) ?? null;
   const isHtml = active?.language === "html";
@@ -368,7 +373,7 @@ export default function PlaygroundPage() {
     <div>
       {badges.length > 0 && <BadgeModal badges={badges} onClose={() => setBadges(badges.slice(1))} />}
       <PageHeader title="Playground" sub="Run code in free practice without an assignment, or work through the course exercises. JavaScript runs locally; Python, C, C++, and C# use the configured Judge0 runner." />
-      {active && user?.role === "student" && <PlaygroundTutor
+      {active && user?.role === "student" && tutorAvailable && <PlaygroundTutor
         key={freeRun ? `free-${active.language}` : active.id}
         open={tutorOpen}
         onClose={() => setTutorOpen(false)}
@@ -458,9 +463,19 @@ export default function PlaygroundPage() {
                       )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      {user?.role === "student" && (
+                      {user?.role === "student" && tutorAvailable && (
                         <button type="button" onClick={() => setTutorOpen(true)} className="btn btn-ghost !py-2 !px-2.5 text-xs" aria-label="Open AI Learning Assistant">
                           <Bot size={14} /> <span className="hidden sm:inline">AI Tutor</span>
+                        </button>
+                      )}
+                      {user?.role === "student" && !tutorAvailable && !tutorSubscription.loading && !tutorSubscription.error && (
+                        <Link href="/billing" className="btn btn-ghost !py-2 !px-2.5 text-xs" aria-label="Subscribe to unlock the AI Learning Assistant">
+                          <Lock size={14} /> <span className="hidden sm:inline">Subscribe for AI Tutor</span>
+                        </Link>
+                      )}
+                      {user?.role === "student" && tutorSubscription.error && (
+                        <button type="button" onClick={() => void tutorSubscription.refetch()} className="btn btn-ghost !py-2 !px-2.5 text-xs" aria-label="Retry subscription check">
+                          <Lock size={14} /> <span className="hidden sm:inline">Retry plan check</span>
                         </button>
                       )}
                       <span className="tag font-mono shrink-0">{code.length.toLocaleString()} chars</span>
