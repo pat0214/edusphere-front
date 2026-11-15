@@ -5,9 +5,10 @@ import { useRouter } from "@/router/navigation";
 import { motion } from "framer-motion";
 import { Mail, Search, ShieldCheck, ShieldX } from "lucide-react";
 import { Logo, SphereLoader } from "./Logo";
+import { api } from "@/lib/api";
 
 type VerifyData = { valid: true; code: string; holder: string; course: string; level: string; issuedAt: string };
-type VerifyResponse = VerifyData & { issued_at?: string };
+type VerifyResponse = Omit<VerifyData, "issuedAt"> & { issuedAt?: string; issued_at?: string };
 
 export default function VerifyClient({ initialCode = "" }: { initialCode?: string }) {
   const router = useRouter();
@@ -21,14 +22,13 @@ export default function VerifyClient({ initialCode = "" }: { initialCode?: strin
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/v1/verify/${encodeURIComponent(initialCode.trim())}`);
-        const json = await res.json();
+        const res = await api.get<VerifyResponse>(`/api/v1/verify/${encodeURIComponent(initialCode.trim())}`);
         if (cancelled) return;
-        if (json.success) {
-          const credential = json.data as VerifyResponse;
+        if (res.success) {
+          const credential = res.data;
           setData({ ...credential, issuedAt: credential.issuedAt ?? credential.issued_at ?? "" });
         }
-        else { setData(null); setError(json.message); }
+        else { setData(null); setError(res.message); }
       } catch {
         if (!cancelled) setError("The verification service didn't answer. Try again in a moment.");
       }

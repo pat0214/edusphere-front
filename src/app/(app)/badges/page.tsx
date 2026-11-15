@@ -11,10 +11,21 @@ import { api } from "@/lib/api";
 import { fmtDate, useApi } from "@/lib/hooks";
 
 type Badges = {
-  earned: { id: string; code: string; name: string; description: string; icon: string; accent: string; xpReward: number; awardedAt: string }[];
+  earned: {
+    id: string;
+    code: string;
+    name: string;
+    description: string;
+    icon: string;
+    accent: string;
+    xpReward?: number;
+    xp_reward?: number;
+    awardedAt?: string;
+    awarded_at?: string;
+  }[];
   upcoming: { code: string; name: string; description: string; icon: string; accent: string }[];
 };
-type Cert = { code: string; issuedAt: string; course: string };
+type Cert = { code: string; issuedAt?: string; issued_at?: string; course: string };
 
 export default function BadgesPage() {
   const badges = useApi<Badges>("/api/v1/badges");
@@ -51,7 +62,7 @@ export default function BadgesPage() {
                 <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(80% 60% at 100% 0%, var(--glow-primary), transparent)" }} />
                 <p className="eyebrow">Certificate of completion</p>
                 <h3 className="display font-bold text-xl mt-2 font-accent italic">{c.course}</h3>
-                <p className="font-mono text-xs text-muted mt-2">issued {fmtDate(c.issuedAt)}</p>
+                <p className="font-mono text-xs text-muted mt-2">issued {fmtDate(c.issuedAt ?? c.issued_at ?? "")}</p>
                 <div className="flex flex-wrap items-center justify-between gap-2 mt-5">
                   <span className="font-mono text-[13px] tracking-widest text-mint">{c.code}</span>
                   <div className="flex flex-wrap gap-2">
@@ -85,7 +96,10 @@ export default function BadgesPage() {
                 <BadgeIcon badge={bd} size={44} />
                 <h4 className="font-semibold text-sm mt-3">{bd.name}</h4>
                 <p className="text-muted text-xs mt-1 leading-relaxed">{bd.description}</p>
-                <p className="font-mono text-[10px] text-muted mt-3">{fmtDate(bd.awardedAt)}{bd.xpReward > 0 ? ` · +${bd.xpReward} XP` : ""}</p>
+                <p className="font-mono text-[10px] text-muted mt-3">
+                  {fmtDate(bd.awardedAt ?? bd.awarded_at ?? "")}
+                  {(bd.xpReward ?? bd.xp_reward ?? 0) > 0 ? ` · +${bd.xpReward ?? bd.xp_reward} XP` : ""}
+                </p>
               </motion.div>
             ))}
           </div>
