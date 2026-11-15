@@ -4,7 +4,7 @@ import dynamic from "@/router/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Eye, Lock, Play, RotateCcw, Send, SquareTerminal, X } from "lucide-react";
 import { SphereLoader } from "@/components/Logo";
-import { PageHeader, SectionTitle } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { BadgeModal, type EarnedBadge } from "@/components/BadgeModal";
 import { toast } from "@/components/Toasts";
 import { api } from "@/lib/api";
@@ -435,9 +435,16 @@ export default function PlaygroundPage() {
 
               <div className="grid 2xl:grid-cols-2 gap-4">
                 <div className="min-w-0">
-                  <div className="min-h-[72px] flex items-end">
-                    <SectionTitle title={freeRun ? `${LANGUAGE_LABELS[active.language] ?? active.language} free practice` : isHtml ? "Markup, styles and script" : "Your solution"} sub={freeRun || isHtml || isCompiledLanguage ? undefined : "must define solve(input)"}
-                      right={<span className="tag font-mono">{code.length.toLocaleString()} chars</span>} />
+                  <div className="min-h-24 flex items-end justify-between gap-4 pb-4">
+                    <div className="min-w-0">
+                      <h2 className="display text-[20px] font-bold tracking-tight">
+                        {freeRun ? `${LANGUAGE_LABELS[active.language] ?? active.language} free practice` : isHtml ? "Markup, styles and script" : "Your solution"}
+                      </h2>
+                      {!freeRun && !isHtml && !isCompiledLanguage && (
+                        <p className="text-muted text-sm mt-0.5">must define solve(input)</p>
+                      )}
+                    </div>
+                    <span className="tag font-mono shrink-0">{code.length.toLocaleString()} chars</span>
                   </div>
                   <div className="monaco-wrap">
                     <Monaco
@@ -477,7 +484,7 @@ export default function PlaygroundPage() {
                 </div>
 
                 <div className="min-w-0">
-                  <div className="mb-5 min-h-[72px] flex flex-wrap content-center items-center justify-between gap-3">
+                  <div className="min-h-24 flex flex-col justify-end gap-2 pb-4">
                     <div className="flex gap-1 card-raise p-1 rounded-xl min-w-0">
                       <button onClick={() => setRightTab("console")} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] transition-colors ${rightTab === "console" ? "bg-primary text-white" : "text-muted hover:text-text"}`}>
                         <SquareTerminal size={13} /> Console
@@ -486,7 +493,7 @@ export default function PlaygroundPage() {
                         <Eye size={13} /> Preview
                       </button>
                     </div>
-                    <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                    <div className="flex flex-wrap items-center justify-start gap-2">
                       {!isHtml && (
                         <button
                           onClick={() => {
@@ -518,7 +525,7 @@ export default function PlaygroundPage() {
                   </div>
 
                   {rightTab === "console" ? (
-                    <div className="monaco-wrap bg-[#0d1024] min-h-[420px] p-4 overflow-y-auto max-h-[520px]">
+                    <div className="monaco-wrap bg-[#0d1024] h-[420px] p-4 overflow-y-auto">
                       {active.language === "javascript" && !freeRun && (
                         <p className="mb-3 rounded-lg border border-mint/30 bg-mint/5 p-3 text-sm text-mint">
                           Runs in an isolated browser frame using visible tests only. Local results are for practice and do not award XP or count toward a score.
