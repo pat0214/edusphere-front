@@ -43,7 +43,9 @@ export const fmtDateTime = (d: string | Date) =>
   new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
 export const timeAgo = (d: string | Date) => {
-  const s = Math.max(1, Math.floor((Date.now() - new Date(d).getTime()) / 1000));
+  const timestamp = d instanceof Date ? d.getTime() : new Date(d).getTime();
+  if (!Number.isFinite(timestamp)) return "Date unavailable";
+  const s = Math.max(1, Math.floor((Date.now() - timestamp) / 1000));
   if (s < 60) return `${s}s ago`;
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;

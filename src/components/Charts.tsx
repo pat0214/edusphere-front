@@ -5,9 +5,29 @@ import { motion } from "framer-motion";
 // Radar over the skill constellation. Up to 10 axes, values 0-100.
 export function Radar({ data, size = 300 }: { data: { skill: string; score: number }[]; size?: number }) {
   const n = Math.max(3, data.length);
-  const cx = size / 2, cy = size / 2, R = size / 2 - 46;
+  const padding = 64;
+  const viewSize = size + padding * 2;
+  const cx = viewSize / 2, cy = viewSize / 2, R = size / 2 - 46;
   const angle = (i: number) => (Math.PI * 2 * i) / n - Math.PI / 2;
   const pt = (i: number, v: number) => [cx + Math.cos(angle(i)) * R * v, cy + Math.sin(angle(i)) * R * v];
+  const wrapLabel = (label: string, maxLength = 10) => {
+    const words = label.split(/\s+/);
+    const lines: string[] = [];
+    let line = "";
+    for (const word of words) {
+      if (word.length > maxLength) {
+        if (line) { lines.push(line); line = ""; }
+        for (let i = 0; i < word.length; i += maxLength) lines.push(word.slice(i, i + maxLength));
+      } else if (line && line.length + word.length + 1 > maxLength) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = line ? `${line} ${word}` : word;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  };
 
   const ring = (f: number) =>
     Array.from({ length: n }, (_, i) => `${i === 0 ? "M" : "L"}${pt(i, f).join(",")}`).join(" ") + " Z";
@@ -17,7 +37,7 @@ export function Radar({ data, size = 300 }: { data: { skill: string; score: numb
   );
 
   return (
-    <svg width="100%" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Skill mastery radar chart">
+    <svg width="100%" viewBox={`0 0 ${viewSize} ${viewSize}`} role="img" aria-label="Skill mastery radar chart">
       {[0.33, 0.66, 1].map((f) => (
         <path key={f} d={ring(f)} fill="none" stroke="var(--line)" strokeWidth="1" />
       ))}
@@ -40,12 +60,17 @@ export function Radar({ data, size = 300 }: { data: { skill: string; score: numb
         return <circle key={`p${i}`} cx={x} cy={y} r="3" fill="var(--mint)" />;
       })}
       {data.map((d, i) => {
-        const [x, y] = pt(i, 1.22);
+        const [x, y] = pt(i, 1.16);
         const anchor = Math.abs(x - cx) < 10 ? "middle" : x > cx ? "start" : "end";
+        const lines = wrapLabel(d.skill);
         return (
           <text key={`l${i}`} x={x} y={y} textAnchor={anchor} dominantBaseline="middle"
             fill="var(--muted)" fontSize="10" fontFamily="var(--font-mono)">
-            {d.skill.length > 14 ? d.skill.slice(0, 13) + "…" : d.skill}
+            {lines.map((line, lineIndex) => (
+              <tspan key={`${i}-${lineIndex}`} x={x} dy={lineIndex === 0 ? `${-(lines.length - 1) * 0.55}em` : "1.1em"}>
+                {line}
+              </tspan>
+            ))}
           </text>
         );
       })}
