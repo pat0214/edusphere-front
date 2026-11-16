@@ -14,7 +14,7 @@ const MAX_HISTORY = 12;
  *
  * `engineRef.current` is the object returned by createPicoEngine().
  */
-export function usePicoChat({ engineRef, endpoint, fetchOptions, context, onMessage, conversationKey = 'default', timeoutMs = 25000 }) {
+export function usePicoChat({ engineRef, endpoint, fetchOptions, context, onMessage, conversationKey = 'default', timeoutMs = 45000 }) {
   const [bubble, setBubble] = useState({ text: '', visible: false, thinking: false });
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(Boolean(endpoint));
@@ -205,7 +205,7 @@ export function usePicoChat({ engineRef, endpoint, fetchOptions, context, onMess
         }
         if (my !== reqId.current) return;
         if (!res.ok || !data || data.ok === false) {
-          const err = new Error((data && data.error && data.error.message) || `HTTP ${res.status}`);
+          const err = new Error((data && data.error && data.error.message) || (data && data.message) || `HTTP ${res.status}`);
           err.code = (data && data.error && data.error.code) || `http_${res.status}`;
           err.status = res.status;
           throw err;
@@ -229,9 +229,13 @@ export function usePicoChat({ engineRef, endpoint, fetchOptions, context, onMess
         stopThinking();
         history.current.pop(); // drop the unanswered user turn
         if (e && e.name === 'AbortError' && ctl.signal.reason !== 'timeout') return;
-        const code = (e && e.code) || (ctl.signal.reason === 'timeout' ? 'timeout' : 'network');
+        const code = ctl.signal.reason === 'timeout' ? 'timeout' : (e && e.code) || 'network';
         const status = e && e.status;
-        if (code === 'rate_limited' || status === 429) {
+        if (code === 'timeout') {
+          const r = smallTalk(text, 'That took longer than expected. Ask me again in a moment?');
+          appendMessage('assistant', r.text);
+          say(r.text, r.mood);
+        } else if (code === 'rate_limited' || status === 429) {
           const reply = 'I need a short breather. Ask me again in a bit?';
           appendMessage('assistant', reply);
           say(reply, 'think');
@@ -254,6 +258,11 @@ export function usePicoChat({ engineRef, endpoint, fetchOptions, context, onMess
           const reply = 'I would rather not answer that one. Ask me something else?';
           appendMessage('assistant', reply);
           say(reply, 'neutral');
+        } else if (status >= 500) {
+          console.warn('[Pico] chat service failed:', e);
+          const r = smallTalk(text, 'My study service is having trouble right now. Please try again shortly.');
+          appendMessage('assistant', r.text);
+          say(r.text, r.mood);
         } else {
           console.warn('[Pico] chat request failed:', e);
           const r = smallTalk(text, 'My signal dropped for a second. Ask me again?');
