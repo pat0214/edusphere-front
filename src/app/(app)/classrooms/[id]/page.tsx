@@ -242,7 +242,7 @@ export default function ClassroomDetailPage() {
         {isTeacher && data.teacherRole && data.status === "active" && <div className="card p-5 space-y-3">
           {connection.error ? <p className="text-sm text-coral">{connection.error}</p>
             : connection.data && !connection.data.enabled ? <p className="text-sm text-muted">Live sessions are currently disabled by an administrator.</p>
-            : !connection.data?.configured ? <p className="text-sm text-muted">The selected Jitsi provider ({connection.data?.provider ?? "JaaS"}) is not configured. Ask your administrator to check the backend credentials.</p>
+            : !connection.data?.configured ? <p className="text-sm text-muted">The selected Jitsi provider ({connection.data?.provider ?? "self-hosted Jitsi"}) is not configured. Ask your administrator to check the Jitsi domain and backend credentials.</p>
               : <div className="space-y-3">
                 <p className="text-xs text-mint">Jitsi provider: {connection.data.provider} · {connection.data.domain}</p>
                 <div className="flex flex-wrap gap-2">

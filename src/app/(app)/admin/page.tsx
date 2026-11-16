@@ -67,7 +67,7 @@ type ClassroomPlatformSettings = {
   emailNotificationsEnabled: boolean;
   maxStudentsPerClassroom: number;
   maxLiveSessionMinutes: number;
-  provider: "public" | "self_hosted" | "jaas";
+  provider: "public" | "self_hosted";
   domain: string;
   jitsiConfigured: boolean;
 };
@@ -221,9 +221,8 @@ export default function AdminPage() {
               <label className="text-xs text-muted">Jitsi provider
                 <select className="input mt-1" value={classroomForm.provider} onChange={(event) => {
                   const provider = event.target.value as ClassroomPlatformSettings["provider"];
-                  setClassroomForm({ ...classroomForm, provider, domain: provider === "jaas" ? "8x8.vc" : provider === "public" ? "meet.jit.si" : classroomForm.domain });
+                  setClassroomForm({ ...classroomForm, provider, domain: provider === "public" ? "meet.jit.si" : provider === "self_hosted" ? "" : classroomForm.domain });
                 }}>
-                  <option value="jaas">JaaS (8x8)</option>
                   <option value="self_hosted">Self-hosted Jitsi with JWT</option>
                   <option value="public">Public meet.jit.si</option>
                 </select>
@@ -237,7 +236,7 @@ export default function AdminPage() {
                 ? "Warning: public Jitsi rooms rely on an unguessable room name and require the room creator to authenticate with a supported account. meet.jit.si currently limits meetings to 95 minutes."
                 : classroomForm.jitsiConfigured
                   ? `Jitsi provider credentials are configured for ${classroomForm.provider}.`
-                  : `Jitsi credentials are not configured. Add the required server-side credentials in Render; they are never shown in this dashboard.`}
+                  : "Set the self-hosted Jitsi domain here and configure JITSI_JWT_APP_ID/JITSI_JWT_SECRET on the backend. Secrets are never shown in this dashboard."}
             </p>
             <div className="grid sm:grid-cols-2 gap-3">
               <label className="text-xs text-muted">Maximum students per classroom<input className="input mt-1" type="number" min={1} max={5000} value={classroomForm.maxStudentsPerClassroom} onChange={(event) => setClassroomForm({ ...classroomForm, maxStudentsPerClassroom: Number(event.target.value) })} /></label>
