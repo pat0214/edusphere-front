@@ -235,7 +235,12 @@ export default function AdminPage() {
               <label className="text-xs text-muted">Jitsi provider
                 <select className="input mt-1" value={classroomForm.provider} onChange={(event) => {
                   const provider = event.target.value as ClassroomPlatformSettings["provider"];
-                  setClassroomForm({ ...classroomForm, provider, domain: provider === "public" ? "meet.jit.si" : provider === "self_hosted" ? "" : classroomForm.domain });
+                  setClassroomForm({
+                    ...classroomForm,
+                    provider,
+                    domain: provider === "public" ? "meet.jit.si" : provider === "self_hosted" ? "" : classroomForm.domain,
+                    maxLiveSessionMinutes: provider === "public" ? Math.min(90, classroomForm.maxLiveSessionMinutes) : classroomForm.maxLiveSessionMinutes,
+                  });
                 }}>
                   <option value="self_hosted">Self-hosted Jitsi with JWT</option>
                   <option value="public">Public meet.jit.si</option>
@@ -247,7 +252,7 @@ export default function AdminPage() {
             </div>
             <p className="text-xs text-muted">
               {classroomForm.provider === "public"
-                ? "Warning: public Jitsi rooms rely on an unguessable room name and require the room creator to authenticate with a supported account. meet.jit.si currently limits meetings to 95 minutes."
+                ? "Warning: public Jitsi rooms rely on an unguessable room name and require the room creator to authenticate with a supported account. EduSphere caps these sessions at 90 minutes to stay within meet.jit.si's 95-minute limit."
                 : classroomForm.jitsiConfigured
                   ? `Jitsi provider credentials are configured for ${classroomForm.provider}.`
                   : "Set the self-hosted Jitsi domain here and configure JITSI_JWT_APP_ID/JITSI_JWT_SECRET on the backend. Secrets are never shown in this dashboard."}
