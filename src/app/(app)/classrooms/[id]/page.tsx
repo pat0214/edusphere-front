@@ -31,8 +31,9 @@ export default function ClassroomDetailPage() {
   const path = `/api/v1/classrooms/${encodeURIComponent(id)}`;
   const classroom = useApi<Classroom>(ready && id ? path : null);
   const isTeacher = user?.role === "instructor";
+  const isAdmin = user?.role === "admin";
   const members = useApi<Member[]>(ready && isTeacher && id ? `${path}/members` : null);
-  const invite = useApi<Invite>(ready && isTeacher && classroom.data?.status === "active" ? `${path}/invite` : null);
+  const invite = useApi<Invite>(ready && (isTeacher || (isAdmin && Boolean(classroom.data?.teacherRole))) && classroom.data?.status === "active" ? `${path}/invite` : null);
   const connection = useApi<GoogleConnection>(ready && isTeacher ? "/api/v1/classrooms/google/connection" : null);
   const sessions = useApi<LiveSession[]>(ready && id ? `${path}/live-sessions` : null);
   const [busy, setBusy] = useState(false);
@@ -82,6 +83,8 @@ export default function ClassroomDetailPage() {
   const data = classroom.data;
   const requests = (members.data ?? []).filter((member) => member.status === "pending");
   const students = (members.data ?? []).filter((member) => member.status === "active");
+  const canViewInvite = Boolean(data.teacherRole) && (isTeacher || isAdmin);
+  const backPath = isAdmin ? "/admin#classrooms" : "/classrooms";
 
   const action = async (label: string, method: "post" | "patch", endpoint: string, body?: unknown) => {
     setBusy(true);
@@ -165,7 +168,7 @@ export default function ClassroomDetailPage() {
 
   return (
     <div className="space-y-6">
-      <button onClick={() => router.push("/classrooms")} className="btn btn-ghost -ml-3"><ArrowLeft size={15} /> My classrooms</button>
+      <button onClick={() => router.push(backPath)} className="btn btn-ghost -ml-3"><ArrowLeft size={15} /> {isAdmin ? "Admin classrooms" : "My classrooms"}</button>
       <PageHeader title={data.name} sub={`${data.subject}${data.gradeLevel ? ` · ${data.gradeLevel}` : ""}${data.status === "archived" ? " · Archived" : ""}`}
         actions={isTeacher && data.teacherRole ? (data.status === "active"
           ? <button className="btn btn-ghost" disabled={busy} onClick={() => void action("Classroom archived.", "post", `${path}/archive`)}><ShieldOff size={15} /> Archive</button>
@@ -189,7 +192,7 @@ export default function ClassroomDetailPage() {
           {!isTeacher && data.membershipStatus === "active" && <button className="btn btn-ghost text-coral" disabled={busy} onClick={() => void action("You left the classroom.", "post", `${path}/leave`)}><ArrowLeft size={14} /> Leave classroom</button>}
         </section>
 
-        {isTeacher && data.teacherRole && data.status === "active" && (
+        {canViewInvite && data.status === "active" && (
           <section className="card p-5 space-y-4">
             <div>
               <h2 className="display font-bold flex items-center gap-2"><Link2 size={16} className="text-primary" /> Invite students</h2>
@@ -205,15 +208,15 @@ export default function ClassroomDetailPage() {
                 <div className="flex gap-2 mt-1"><input className="input min-w-0 text-xs" readOnly value={inviteUrl} /><button className="btn btn-ghost !p-2" onClick={() => void copy(inviteUrl, "Invitation link")} aria-label="Copy invitation link"><Copy size={14} /></button></div>
               </div>
               <p className={`text-xs ${invite.data.invitationsEnabled ? "text-mint" : "text-coral"}`}>{invite.data.invitationsEnabled ? "Invitations enabled" : "Invitations paused"} · {invite.data.uses} uses</p>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-[11px] text-muted">Use limit<input className="input mt-1" type="number" min={1} max={50000} value={inviteMaxUses} onChange={(event) => setInviteMaxUses(event.target.value)} placeholder="No limit" /></label>
-                <label className="text-[11px] text-muted">Expires at<input className="input mt-1" type="datetime-local" value={inviteExpiry} onChange={(event) => setInviteExpiry(event.target.value)} /></label>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button className="btn btn-ghost" disabled={busy} onClick={() => void saveInviteLimits()}>Save invite limits</button>
-                <button className="btn btn-ghost" disabled={busy} onClick={() => void action("Invitation settings updated.", "patch", `${path}/invite`, { enabled: !invite.data!.invitationsEnabled })}>{invite.data.invitationsEnabled ? "Pause invites" : "Enable invites"}</button>
-                <button className="btn btn-ghost" disabled={busy} onClick={() => window.confirm("Create a new code and link? The current invitations will stop working.") && void action("Invitation code and link rotated.", "patch", `${path}/invite`, { reset: true })}><RefreshCw size={13} /> Reset</button>
-              </div>
+              {isTeacher && <><div className="grid grid-cols-2 gap-2">
+                  <label className="text-[11px] text-muted">Use limit<input className="input mt-1" type="number" min={1} max={50000} value={inviteMaxUses} onChange={(event) => setInviteMaxUses(event.target.value)} placeholder="No limit" /></label>
+                  <label className="text-[11px] text-muted">Expires at<input className="input mt-1" type="datetime-local" value={inviteExpiry} onChange={(event) => setInviteExpiry(event.target.value)} /></label>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button className="btn btn-ghost" disabled={busy} onClick={() => void saveInviteLimits()}>Save invite limits</button>
+                  <button className="btn btn-ghost" disabled={busy} onClick={() => void action("Invitation settings updated.", "patch", `${path}/invite`, { enabled: !invite.data!.invitationsEnabled })}>{invite.data.invitationsEnabled ? "Pause invites" : "Enable invites"}</button>
+                  <button className="btn btn-ghost" disabled={busy} onClick={() => window.confirm("Create a new code and link? The current invitations will stop working.") && void action("Invitation code and link rotated.", "patch", `${path}/invite`, { reset: true })}><RefreshCw size={13} /> Reset</button>
+                </div></>}
             </> : <p className="text-sm text-muted">{invite.error ?? "Loading invitation settings…"}</p>}
           </section>
         )}
@@ -285,7 +288,7 @@ export default function ClassroomDetailPage() {
             <div className="flex flex-wrap items-center justify-between gap-2 mt-4">
               <p className="text-xs text-muted">{session.attendanceCount} join clicks recorded</p>
               <div className="flex gap-2">
-                {session.status === "live" && <button className="btn btn-primary !px-3 !py-2" onClick={() => void joinSession(session)}><Video size={13} /> Join live</button>}
+                {session.status === "live" && !isAdmin && <button className="btn btn-primary !px-3 !py-2" onClick={() => void joinSession(session)}><Video size={13} /> Join live</button>}
                 {isTeacher && data.teacherRole && session.status === "live" && <button className="btn btn-ghost !px-3 !py-2 text-coral" disabled={sessionBusy} onClick={() => window.confirm("End this live session for all classroom members?") && void endSession(session)}><X size={13} /> End</button>}
               </div>
             </div>

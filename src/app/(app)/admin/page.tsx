@@ -10,6 +10,7 @@ import { PageHeader, SectionTitle, SkillBar, StatCard } from "@/components/ui";
 import { toast } from "@/components/Toasts";
 import { fmtDate, useApi } from "@/lib/hooks";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/store";
 import { useRequireAuth } from "@/components/Shell";
 
 type AdminUser = {
@@ -87,6 +88,7 @@ const money = (cents: number, currency: string) => new Intl.NumberFormat(undefin
 
 export default function AdminPage() {
   const { ready } = useRequireAuth("admin");
+  const currentUser = useAuth((state) => state.user);
   const [activeSection, setActiveSection] = useState("overview");
   const users = useApi<AdminUsers>(ready ? "/api/v1/admin/users" : null);
   const analytics = useApi<AdminAnalytics>(ready ? "/api/v1/admin/analytics" : null);
@@ -198,6 +200,14 @@ export default function AdminPage() {
     toast.ok(response.message);
     void classroomAdmin.refetch();
   };
+  const openClassroomAsCoTeacher = async (id: string, name: string) => {
+    if (!window.confirm(`Add your admin account as a co-teacher for ${name}? This grants access to its invitation code.`)) return;
+    setBusyId(id);
+    const response = await api.post(`/api/v1/admin/classrooms/${id}/access`);
+    setBusyId(null);
+    if (!response.success) { toast.err(response.message); return; }
+    window.location.assign(`/classrooms/${id}`);
+  };
 
   return (
     <div className="space-y-9">
@@ -281,6 +291,7 @@ export default function AdminPage() {
                   <td className="px-3 py-3 font-mono">{classroom.studentCount}{classroom.pendingCount ? ` · ${classroom.pendingCount} pending` : ""}</td>
                   <td className="px-3 py-3 capitalize">{classroom.status}</td>
                   <td className="px-5 py-3"><div className="flex gap-2">
+                    {classroom.status === "active" && <button className="btn btn-ghost !px-2 !py-1.5" disabled={!currentUser || busyId === classroom.id} onClick={() => void openClassroomAsCoTeacher(classroom.id, classroom.name)}>{busyId === classroom.id ? "Opening…" : "Open as co-teacher"}</button>}
                     {classroom.status === "deleted" ? <button className="btn btn-ghost !px-2 !py-1.5" onClick={() => void setClassroomStatus(classroom.id, "active")}>Restore</button> : <>
                       <button className="btn btn-ghost !px-2 !py-1.5" onClick={() => void setClassroomStatus(classroom.id, classroom.status === "active" ? "archived" : "active")}>{classroom.status === "active" ? "Archive" : "Reactivate"}</button>
                       <button className="btn btn-ghost !px-2 !py-1.5 text-coral" onClick={() => void setClassroomStatus(classroom.id, "deleted")}>Remove</button>
