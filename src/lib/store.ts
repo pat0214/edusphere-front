@@ -10,6 +10,7 @@ export type User = {
   level: number;
   avatar?: string;
   bio?: string;
+  subject?: string;
 };
 
 type AuthState = {
@@ -68,6 +69,7 @@ export const normalizeUser = (candidate: Partial<User> | null | undefined): User
   level: candidate?.level ?? 1,
   avatar: candidate?.avatar ?? buildProfileAvatar(candidate?.name ?? "Student"),
   bio: candidate?.bio ?? "Building momentum, one lesson at a time.",
+  subject: candidate?.subject ?? "",
 });
 
 export function getPostAuthPath(user: Pick<User, "role"> | null | undefined, opts: { isNew?: boolean } = {}) {

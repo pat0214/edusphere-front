@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Activity, CircleDollarSign, Search, ShieldCheck, Sparkles, UserRoundCheck, UserRoundX,
+  Activity, CircleDollarSign, Search, ShieldCheck, Sparkles, UserPlus, UserRoundCheck, UserRoundX,
 } from "lucide-react";
 import { ActivityArea } from "@/components/Charts";
 import { SphereLoader } from "@/components/Logo";
@@ -97,6 +97,8 @@ export default function AdminPage() {
   const [savingAi, setSavingAi] = useState(false);
   const [savingClassroom, setSavingClassroom] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [creatingInstructor, setCreatingInstructor] = useState(false);
+  const [instructorForm, setInstructorForm] = useState({ name: "", email: "", subject: "", password: "" });
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -153,6 +155,18 @@ export default function AdminPage() {
     setBusyId(null);
     if (!res.success) { toast.err(res.message); return; }
     toast.ok(res.message);
+    void users.refetch();
+    void analytics.refetch();
+  };
+
+  const createInstructor = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCreatingInstructor(true);
+    const response = await api.post("/api/v1/admin/instructors", instructorForm);
+    setCreatingInstructor(false);
+    if (!response.success) { toast.err(response.message); return; }
+    setInstructorForm({ name: "", email: "", subject: "", password: "" });
+    toast.ok(response.message);
     void users.refetch();
     void analytics.refetch();
   };
@@ -489,6 +503,34 @@ export default function AdminPage() {
       {activeSection === "users" && <section>
         <div id="users" className="card p-5 md:p-6">
           <SectionTitle title="All user accounts" sub={`${number(d.rows.filter((row) => row.active).length)} active of ${number(d.rows.length)} total`} />
+          <form onSubmit={(event) => void createInstructor(event)} className="mb-6 rounded-xl border border-line p-4 md:p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <UserPlus size={16} className="text-primary" />
+              <h3 className="font-semibold">Create instructor account</h3>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-xs text-muted">Full name
+                <input className="input mt-1" required minLength={2} maxLength={100} value={instructorForm.name}
+                  onChange={(event) => setInstructorForm({ ...instructorForm, name: event.target.value })} autoComplete="name" />
+              </label>
+              <label className="text-xs text-muted">Email
+                <input className="input mt-1" type="email" required maxLength={190} value={instructorForm.email}
+                  onChange={(event) => setInstructorForm({ ...instructorForm, email: event.target.value })} autoComplete="email" />
+              </label>
+              <label className="text-xs text-muted">Teaching subject
+                <input className="input mt-1" required maxLength={160} value={instructorForm.subject}
+                  onChange={(event) => setInstructorForm({ ...instructorForm, subject: event.target.value })} placeholder="e.g. Mathematics" />
+              </label>
+              <label className="text-xs text-muted">Initial password
+                <input className="input mt-1" type="password" required minLength={8} maxLength={72} value={instructorForm.password}
+                  onChange={(event) => setInstructorForm({ ...instructorForm, password: event.target.value })} autoComplete="new-password" />
+              </label>
+            </div>
+            <p className="text-xs text-muted mt-3">The account is active and can sign in immediately. Share the initial password securely.</p>
+            <button type="submit" disabled={creatingInstructor} className="btn btn-primary mt-4">
+              {creatingInstructor ? "Creating..." : "Create instructor"}
+            </button>
+          </form>
           <div className="grid sm:grid-cols-[1fr_150px_150px] gap-2 mb-4">
             <label className="relative">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />

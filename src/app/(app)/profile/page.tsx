@@ -48,6 +48,7 @@ export default function ProfilePage() {
   const { user, setUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [bio, setBio] = useState(user?.bio ?? "Building momentum, one lesson at a time.");
+  const [subject, setSubject] = useState(user?.subject ?? "");
   const [avatar, setAvatar] = useState(user?.avatar ?? buildProfileAvatar(user?.name ?? "Student"));
   const [saving, setSaving] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
@@ -63,6 +64,7 @@ export default function ProfilePage() {
       }
       setUser(res.data.user);
       setBio(res.data.user.bio ?? "Building momentum, one lesson at a time.");
+      setSubject(res.data.user.subject ?? "");
       setAvatar(res.data.user.avatar ?? buildProfileAvatar(res.data.user.name));
       setHasUnsavedChanges(false);
     });
@@ -117,7 +119,11 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     setSaving(true);
-    const res = await api.patch<{ user: User }>("/api/v1/profile", { bio, avatar });
+    const res = await api.patch<{ user: User }>("/api/v1/profile", {
+      bio,
+      avatar,
+      ...(user.role === "instructor" ? { subject } : {}),
+    });
     setSaving(false);
     if (!res.success) {
       toast.err(res.message);
@@ -125,6 +131,7 @@ export default function ProfilePage() {
     }
     setUser(res.data.user);
     setBio(res.data.user.bio ?? bio);
+    setSubject(res.data.user.subject ?? "");
     setAvatar(res.data.user.avatar ?? avatar);
     setHasUnsavedChanges(false);
     toast.ok("Profile saved — your orbit is looking sharper.");
@@ -214,6 +221,24 @@ export default function ProfilePage() {
             placeholder="I turn confusion into momentum by shipping tiny wins, testing ideas fast, and learning in public."
             disabled={saving}
           />
+
+          {user.role === "instructor" && (
+            <label className="block mt-4 text-sm font-medium">
+              Teaching subject
+              <input
+                className="input mt-1.5"
+                value={subject}
+                onChange={(event) => {
+                  setSubject(event.target.value.slice(0, 160));
+                  setHasUnsavedChanges(true);
+                }}
+                maxLength={160}
+                placeholder="e.g. Computer Science"
+                disabled={saving}
+              />
+              <span className="mt-1 block text-xs text-muted">New classes use this as their course title.</span>
+            </label>
+          )}
 
           <div className="mt-4 flex items-center justify-between gap-3">
             <p className="text-muted text-sm" aria-live="polite">
