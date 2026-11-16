@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "@/router/link";
 import { usePathname, useRouter } from "@/router/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -12,6 +12,11 @@ import { ToastHost, toast } from "./Toasts";
 import { useAuth, hydrateAuth } from "@/lib/store";
 import { api } from "@/lib/api";
 import { timeAgo } from "@/lib/hooks";
+
+type NotificationFeed = {
+  rows: { id: string; type: string; title: string; body: string; createdAt: string; readAt: string | null }[];
+  unread: number;
+};
 
 const NAV = {
   student: [
@@ -71,7 +76,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const { user, hydrated, ready } = useRequireAuth();
   const [theme, setTheme] = useState<string>("dark");
   const [bellOpen, setBellOpen] = useState(false);
-  const [notes, setNotes] = useState<{ rows: { id: string; title: string; body: string; createdAt: string; readAt: string | null }[]; unread: number } | null>(null);
+  const [notes, setNotes] = useState<NotificationFeed | null>(null);
+  const seenNotificationIds = useRef<Set<string> | null>(null);
   const [subscription, setSubscription] = useState<{ plan: string; status: string } | null>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -96,14 +102,36 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready) return;
     let cancelled = false;
-    const refreshNotifications = () => void api.get<typeof notes>("/api/v1/notifications").then((res) => {
-      if (!cancelled && res.success) setNotes(res.data);
-    });
+    let refreshing = false;
+    const refreshNotifications = async () => {
+      if (cancelled || refreshing || document.visibilityState === "hidden") return;
+      refreshing = true;
+      try {
+        const res = await api.get<NotificationFeed>("/api/v1/notifications");
+        if (cancelled || !res.success) return;
+        const previousIds = seenNotificationIds.current;
+        if (previousIds) {
+          for (const notification of res.data.rows) {
+            if (notification.type === "classroom_live_session" && !notification.readAt && !previousIds.has(notification.id)) {
+              toast.info(`${notification.title}: ${notification.body}`);
+            }
+          }
+        }
+        seenNotificationIds.current = new Set(res.data.rows.map((notification) => notification.id));
+        setNotes(res.data);
+      } finally {
+        refreshing = false;
+      }
+    };
     refreshNotifications();
+    const interval = window.setInterval(() => void refreshNotifications(), 15000);
     window.addEventListener("focus", refreshNotifications);
+    document.addEventListener("visibilitychange", refreshNotifications);
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
       window.removeEventListener("focus", refreshNotifications);
+      document.removeEventListener("visibilitychange", refreshNotifications);
     };
   }, [ready]);
 
@@ -117,9 +145,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }, [ready]);
 
   const markRead = async () => {
-    await api.patch("/api/v1/notifications", { all: true });
-    const res = await api.get<typeof notes>("/api/v1/notifications");
+    const result = await api.patch("/api/v1/notifications", { all: true });
+    if (!result.success) { toast.err(result.message); return; }
+    const res = await api.get<NotificationFeed>("/api/v1/notifications");
     if (res.success) setNotes(res.data);
+    else toast.err(res.message);
   };
 
   const logout = async () => {

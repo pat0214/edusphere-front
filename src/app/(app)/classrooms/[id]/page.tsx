@@ -51,6 +51,20 @@ export default function ClassroomDetailPage() {
     if (result === "error") toast.err("Google Calendar connection did not complete.");
   }, [searchParams]);
   useEffect(() => {
+    if (!ready || !id) return;
+    const refreshSessions = () => {
+      if (document.visibilityState === "visible") void sessions.refetch();
+    };
+    const interval = window.setInterval(refreshSessions, 15000);
+    window.addEventListener("focus", refreshSessions);
+    document.addEventListener("visibilitychange", refreshSessions);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshSessions);
+      document.removeEventListener("visibilitychange", refreshSessions);
+    };
+  }, [ready, id, sessions.refetch]);
+  useEffect(() => {
     if (!invite.data) return;
     setInviteMaxUses(invite.data.maxUses?.toString() ?? "");
     if (!invite.data.expiresAt) {
