@@ -1,10 +1,11 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, BookOpen, Check, Copy, ExternalLink, Link2, Mail, Radio, RefreshCw, ShieldOff, Trash2, Users, Video, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowLeft, BookOpen, Check, Copy, Link2, Mail, Radio, RefreshCw, ShieldOff, Trash2, Users, Video, X } from "lucide-react";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { SphereLoader } from "@/components/Logo";
 import { useRequireAuth } from "@/components/Shell";
 import { toast } from "@/components/Toasts";
+import { JitsiMeeting } from "@/components/JitsiMeeting";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { useAuth } from "@/lib/store";
@@ -17,8 +18,9 @@ type Classroom = {
 };
 type Member = { id: string; userId: string; name: string; email: string; status: string; requestedAt: string; blockedFromRejoining: boolean };
 type Invite = { joinCode: string; inviteToken: string; invitationsEnabled: boolean; expiresAt: string | null; maxUses: number | null; uses: number };
-type LiveSession = { id: string; requestId: string; title: string; description: string; status: string; startsAt: string; endsAt: string; meetUrl: string | null; teacherName: string; attended: boolean; attendanceCount: number };
-type GoogleConnection = { connected: boolean; configured: boolean; enabled: boolean; maxDurationMinutes: number; googleEmail: string | null };
+type LiveSession = { id: string; requestId: string; title: string; description: string; status: string; startsAt: string; endsAt: string; teacherName: string; attended: boolean; attendanceCount: number };
+type GoogleConnection = { connected: boolean; configured: boolean; googleConfigured: boolean; enabled: boolean; maxDurationMinutes: number; provider: string; domain: string; googleEmail: string | null };
+type MeetingCredentials = { sessionId: string; provider: string; domain: string; roomName: string; jwt: string | null; url: string; title: string; endsAt: string };
 
 export default function ClassroomDetailPage() {
   const { ready } = useRequireAuth();
@@ -36,8 +38,10 @@ export default function ClassroomDetailPage() {
   const [busy, setBusy] = useState(false);
   const [sessionBusy, setSessionBusy] = useState(false);
   const [sessionTitle, setSessionTitle] = useState("");
-  const [sessionRequestId, setSessionRequestId] = useState("");
+  const [sessionTopic, setSessionTopic] = useState("");
   const [sessionDuration, setSessionDuration] = useState(60);
+  const [notifyStudents, setNotifyStudents] = useState(true);
+  const [meeting, setMeeting] = useState<MeetingCredentials | null>(null);
   const [inviteExpiry, setInviteExpiry] = useState("");
   const [inviteMaxUses, setInviteMaxUses] = useState("");
 
@@ -91,7 +95,7 @@ export default function ClassroomDetailPage() {
     window.location.assign(result.data.authorizationUrl);
   };
   const disconnectGoogle = async () => {
-    if (!window.confirm("Disconnect Google Calendar? Existing Meet links remain in their sessions, but new sessions will require reconnecting.")) return;
+    if (!window.confirm("Disconnect Google Calendar? Jitsi live sessions will continue to work; new sessions will no longer get optional Calendar invitations.")) return;
     const result = await api.delete("/api/v1/classrooms/google/connection");
     if (!result.success) { toast.err(result.message); return; }
     toast.ok(result.message);
@@ -110,43 +114,40 @@ export default function ClassroomDetailPage() {
     toast.ok(result.message);
   };
   const startSession = async () => {
-    const title = sessionTitle.trim() || `${data.name} live class`;
-    const requestId = sessionRequestId || crypto.randomUUID();
-    setSessionRequestId(requestId);
+    const title = sessionTitle.trim() || `${data.name} - Live Session`;
+    const requestId = crypto.randomUUID();
     setSessionBusy(true);
     const result = await api.post<{ session: LiveSession }>(`${path}/live-sessions/start`, {
-      requestId, title, durationMinutes: Math.min(sessionDuration, connection.data?.maxDurationMinutes ?? sessionDuration),
+      requestId, title, description: sessionTopic,
+      durationMinutes: Math.min(sessionDuration, connection.data?.maxDurationMinutes ?? sessionDuration),
+      notifyStudents,
     });
     setSessionBusy(false);
     if (!result.success) { toast.err(result.message); return; }
     toast.ok(result.message);
-    if (result.data.session.status === "live") setSessionRequestId("");
     setSessionTitle("");
+    setSessionTopic("");
     await sessions.refetch();
+    await joinSession(result.data.session);
   };
   const joinSession = async (session: LiveSession) => {
-    const tab = window.open("about:blank", "_blank");
-    const result = await api.post<{ meetUrl: string; title: string }>(`/api/v1/classroom-sessions/${session.id}/join`);
+    const result = await api.post<MeetingCredentials>(`/api/v1/classroom-sessions/${session.id}/join`);
     if (!result.success) {
-      tab?.close();
       toast.err(result.message);
       return;
     }
-    if (tab) {
-      tab.opener = null;
-      tab.location.href = result.data.meetUrl;
-    } else {
-      window.location.assign(result.data.meetUrl);
-    }
+    setMeeting({ ...result.data, sessionId: session.id, title: session.title });
   };
   const endSession = async (session: LiveSession) => {
     setSessionBusy(true);
-    const result = await api.post<{ ended: boolean; calendarEventRemoved: boolean }>(`/api/v1/classroom-sessions/${session.id}/end`);
+    const result = await api.post<{ ended: boolean; calendarEventUpdated: boolean }>(`/api/v1/classroom-sessions/${session.id}/end`);
     setSessionBusy(false);
     if (!result.success) { toast.err(result.message); return; }
+    setMeeting(null);
     toast.info(result.message);
     await sessions.refetch();
   };
+  const closeMeeting = useCallback(() => setMeeting(null), []);
 
   return (
     <div className="space-y-6">
@@ -235,24 +236,28 @@ export default function ClassroomDetailPage() {
 
       <section className="space-y-4">
         <div className="flex items-end justify-between gap-3">
-          <div><h2 className="display text-xl font-bold flex items-center gap-2"><Radio size={18} className="text-primary" /> Live sessions</h2><p className="text-sm text-muted mt-1">Start a Google Meet session instantly or join one hosted by your teacher.</p></div>
+          <div><h2 className="display text-xl font-bold flex items-center gap-2"><Radio size={18} className="text-primary" /> Live sessions</h2><p className="text-sm text-muted mt-1">Start an instant Jitsi class or join one hosted by your teacher.</p></div>
           <button className="btn btn-ghost" disabled={sessions.loading} onClick={() => void sessions.refetch()}><RefreshCw size={14} /> Refresh</button>
         </div>
         {isTeacher && data.teacherRole && data.status === "active" && <div className="card p-5 space-y-3">
           {connection.error ? <p className="text-sm text-coral">{connection.error}</p>
             : connection.data && !connection.data.enabled ? <p className="text-sm text-muted">Live sessions are currently disabled by an administrator.</p>
-            : !connection.data?.configured ? <p className="text-sm text-muted">Live sessions need Google OAuth credentials and token encryption configured on the backend.</p>
-            : !connection.data.connected ? <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted">Connect a Google account that can create Calendar events and Meet links.</p><button className="btn btn-primary" onClick={() => void connectGoogle()}><Link2 size={14} /> Connect Google Calendar</button></div>
+            : !connection.data?.configured ? <p className="text-sm text-muted">The selected Jitsi provider ({connection.data?.provider ?? "JaaS"}) is not configured. Ask your administrator to check the backend credentials.</p>
               : <div className="space-y-3">
-                <p className="text-xs text-mint">Connected to {connection.data.googleEmail ?? "Google Calendar"} · attendees are active classroom members only.</p>
+                <p className="text-xs text-mint">Jitsi provider: {connection.data.provider} · {connection.data.domain}</p>
                 <div className="flex flex-wrap gap-2">
-                  <input className="input min-w-[220px] flex-1" value={sessionTitle} onChange={(event) => setSessionTitle(event.target.value)} maxLength={160} placeholder={`${data.name} live class`} aria-label="Session title" />
+                  <input className="input min-w-[220px] flex-1" value={sessionTitle} onChange={(event) => setSessionTitle(event.target.value)} maxLength={160} placeholder={`${data.name} - Live Session`} aria-label="Session title" />
                   <select className="input w-32" value={Math.min(sessionDuration, connection.data.maxDurationMinutes)} onChange={(event) => setSessionDuration(Number(event.target.value))} aria-label="Session duration">
                     {[10, 30, 60, 90, 120, 180, 240].filter((minutes) => minutes <= connection.data!.maxDurationMinutes).map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
                   </select>
-                  <button className="btn btn-primary" disabled={sessionBusy} onClick={() => void startSession()}><Video size={14} /> {sessionBusy ? "Starting…" : sessionRequestId ? "Retry Meet setup" : "Start live session"}</button>
+                  <button className="btn btn-primary" disabled={sessionBusy} onClick={() => void startSession()}><Video size={14} /> {sessionBusy ? "Starting…" : "Start live session"}</button>
                 </div>
-                <button className="text-xs text-muted underline underline-offset-2" onClick={() => void disconnectGoogle()}>Disconnect Google Calendar</button>
+                <input className="input w-full" value={sessionTopic} onChange={(event) => setSessionTopic(event.target.value)} maxLength={1000} placeholder="Optional topic" aria-label="Session topic" />
+                <label className="flex items-center gap-2 text-xs text-muted"><input type="checkbox" checked={notifyStudents} onChange={(event) => setNotifyStudents(event.target.checked)} /> Notify students in EduSphere and by email</label>
+                {connection.data.googleConfigured && (connection.data.connected
+                  ? <p className="text-xs text-muted">Optional Google Calendar invitations enabled for {connection.data.googleEmail ?? "your connected account"}.</p>
+                  : <button className="text-xs text-muted underline underline-offset-2" onClick={() => void connectGoogle()}>Connect Google Calendar for optional student invitations</button>)}
+                {connection.data.connected && <button className="text-xs text-muted underline underline-offset-2" onClick={() => void disconnectGoogle()}>Disconnect Google Calendar</button>}
               </div>}
         </div>}
         {sessions.error && <div className="card p-4 text-sm text-coral">{sessions.error}</div>}
@@ -266,15 +271,15 @@ export default function ClassroomDetailPage() {
             <div className="flex flex-wrap items-center justify-between gap-2 mt-4">
               <p className="text-xs text-muted">{session.attendanceCount} join clicks recorded</p>
               <div className="flex gap-2">
-                {session.status === "live" && session.meetUrl && <button className="btn btn-primary !px-3 !py-2" onClick={() => void joinSession(session)}><ExternalLink size={13} /> Join Meet</button>}
-                {isTeacher && data.teacherRole && session.status === "live" && <button className="btn btn-ghost !px-3 !py-2 text-coral" disabled={sessionBusy} onClick={() => window.confirm("End the EduSphere session and cancel its Calendar event?") && void endSession(session)}><X size={13} /> End</button>}
-                {isTeacher && data.teacherRole && ["provisioning", "failed"].includes(session.status) && <button className="btn btn-ghost !px-3 !py-2" disabled={sessionBusy} onClick={() => { setSessionRequestId(session.requestId); setSessionTitle(session.title); }}><RefreshCw size={13} /> Retry</button>}
+                {session.status === "live" && <button className="btn btn-primary !px-3 !py-2" onClick={() => void joinSession(session)}><Video size={13} /> Join live</button>}
+                {isTeacher && data.teacherRole && session.status === "live" && <button className="btn btn-ghost !px-3 !py-2 text-coral" disabled={sessionBusy} onClick={() => window.confirm("End this live session for all classroom members?") && void endSession(session)}><X size={13} /> End</button>}
               </div>
             </div>
           </article>)}
-        </div> : <EmptyState icon={<Radio size={18} />} title="No live sessions yet" body={isTeacher ? "Connect Google Calendar above to start a live class." : "Your teacher's live sessions will appear here."} />}
-        <p className="text-[11px] text-muted">Attendance records represent when a classroom member clicked Join in EduSphere; Google Meet participation is not independently verified.</p>
+        </div> : <EmptyState icon={<Radio size={18} />} title="No live sessions yet" body={isTeacher ? "Start a live class when you are ready." : "Your teacher's live sessions will appear here."} />}
+        <p className="text-[11px] text-muted">Attendance is recorded when a member joins through EduSphere; in-meeting participation is not independently verified.</p>
       </section>
+      {meeting && <JitsiMeeting sessionId={meeting.sessionId} domain={meeting.domain} roomName={meeting.roomName} jwt={meeting.jwt} displayName={user?.name ?? "EduSphere member"} fallbackUrl={meeting.url} onClose={closeMeeting} />}
     </div>
   );
 }

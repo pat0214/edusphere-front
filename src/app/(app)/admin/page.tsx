@@ -67,6 +67,9 @@ type ClassroomPlatformSettings = {
   emailNotificationsEnabled: boolean;
   maxStudentsPerClassroom: number;
   maxLiveSessionMinutes: number;
+  provider: "public" | "self_hosted" | "jaas";
+  domain: string;
+  jitsiConfigured: boolean;
 };
 type ClassroomAdminData = {
   settings: ClassroomPlatformSettings;
@@ -212,8 +215,30 @@ export default function AdminPage() {
           </div>
           <div className="card p-5 space-y-4">
             <label className="flex items-center justify-between gap-4 text-sm"><span>Enable subject classrooms</span><input type="checkbox" className="accent-primary size-4" checked={classroomForm.classroomsEnabled} onChange={(event) => setClassroomForm({ ...classroomForm, classroomsEnabled: event.target.checked })} /></label>
-            <label className="flex items-center justify-between gap-4 text-sm"><span>Enable Google Meet sessions</span><input type="checkbox" className="accent-primary size-4" checked={classroomForm.liveSessionsEnabled} onChange={(event) => setClassroomForm({ ...classroomForm, liveSessionsEnabled: event.target.checked })} /></label>
+            <label className="flex items-center justify-between gap-4 text-sm"><span>Enable Jitsi live sessions</span><input type="checkbox" className="accent-primary size-4" checked={classroomForm.liveSessionsEnabled} onChange={(event) => setClassroomForm({ ...classroomForm, liveSessionsEnabled: event.target.checked })} /></label>
             <label className="flex items-center justify-between gap-4 text-sm"><span>Enable notification email delivery</span><input type="checkbox" className="accent-primary size-4" checked={classroomForm.emailNotificationsEnabled} onChange={(event) => setClassroomForm({ ...classroomForm, emailNotificationsEnabled: event.target.checked })} /></label>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <label className="text-xs text-muted">Jitsi provider
+                <select className="input mt-1" value={classroomForm.provider} onChange={(event) => {
+                  const provider = event.target.value as ClassroomPlatformSettings["provider"];
+                  setClassroomForm({ ...classroomForm, provider, domain: provider === "jaas" ? "8x8.vc" : provider === "public" ? "meet.jit.si" : classroomForm.domain });
+                }}>
+                  <option value="jaas">JaaS (8x8)</option>
+                  <option value="self_hosted">Self-hosted Jitsi with JWT</option>
+                  <option value="public">Public meet.jit.si</option>
+                </select>
+              </label>
+              {classroomForm.provider === "self_hosted" && <label className="text-xs text-muted">Self-hosted domain
+                <input className="input mt-1" value={classroomForm.domain} onChange={(event) => setClassroomForm({ ...classroomForm, domain: event.target.value })} placeholder="meet.example.edu" />
+              </label>}
+            </div>
+            <p className="text-xs text-muted">
+              {classroomForm.provider === "public"
+                ? "Warning: public Jitsi rooms rely on an unguessable room name and require the room creator to authenticate with a supported account. meet.jit.si currently limits meetings to 95 minutes."
+                : classroomForm.jitsiConfigured
+                  ? `Jitsi provider credentials are configured for ${classroomForm.provider}.`
+                  : `Jitsi credentials are not configured. Add the required server-side credentials in Render; they are never shown in this dashboard.`}
+            </p>
             <div className="grid sm:grid-cols-2 gap-3">
               <label className="text-xs text-muted">Maximum students per classroom<input className="input mt-1" type="number" min={1} max={5000} value={classroomForm.maxStudentsPerClassroom} onChange={(event) => setClassroomForm({ ...classroomForm, maxStudentsPerClassroom: Number(event.target.value) })} /></label>
               <label className="text-xs text-muted">Maximum live-session duration (minutes)<input className="input mt-1" type="number" min={10} max={240} value={classroomForm.maxLiveSessionMinutes} onChange={(event) => setClassroomForm({ ...classroomForm, maxLiveSessionMinutes: Number(event.target.value) })} /></label>
@@ -225,7 +250,7 @@ export default function AdminPage() {
             {classroomAdmin.data.emailQueue ? <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
               {Object.entries(classroomAdmin.data.emailQueue).map(([status, count]) => <div key={status} className="rounded-xl bg-raised p-3"><p className="eyebrow">{status}</p><p className="display text-xl font-bold mt-1">{number(count)}</p></div>)}
             </div> : <p className="text-sm text-muted">Apply migration 008 to enable queued email monitoring.</p>}
-            <p className="text-xs text-muted mt-4">{number(classroomAdmin.data.usage.joinClicks)} recorded Join clicks. This is not a verified Google Meet attendance report.</p>
+            <p className="text-xs text-muted mt-4">{number(classroomAdmin.data.usage.joinClicks)} recorded join events. Attendance is labeled as joined through EduSphere, not independently verified.</p>
           </div>
           <div className="card overflow-hidden">
             <div className="p-5 border-b border-line"><SectionTitle title="Classroom management" sub="Latest 200 classrooms, including archived or removed records." /></div>
