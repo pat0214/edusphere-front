@@ -77,6 +77,7 @@ export default function ClassroomDetailPage() {
     setInviteExpiry(localDate.toISOString().slice(0, 16));
   }, [invite.data]);
 
+  const closeMeeting = useCallback(() => setMeeting(null), []);
   const inviteUrl = useMemo(() => invite.data ? `${window.location.origin}/join/${invite.data.inviteToken}` : "", [invite.data]);
   if (!ready || classroom.loading) return <SphereLoader label="Loading classroom" />;
   if (!classroom.data) return <div className="card p-6 text-sm text-coral">{classroom.error ?? "Classroom unavailable."}</div>;
@@ -164,8 +165,6 @@ export default function ClassroomDetailPage() {
     toast.info(result.message);
     await sessions.refetch();
   };
-  const closeMeeting = useCallback(() => setMeeting(null), []);
-
   return (
     <div className="space-y-6">
       <button onClick={() => router.push(backPath)} className="btn btn-ghost -ml-3"><ArrowLeft size={15} /> {isAdmin ? "Admin classrooms" : "My classrooms"}</button>
