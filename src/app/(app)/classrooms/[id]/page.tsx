@@ -1,11 +1,13 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, BookOpen, Check, Copy, Link2, Mail, Radio, RefreshCw, ShieldOff, Trash2, Users, Video, X } from "lucide-react";
+import { ArrowLeft, BookOpen, CalendarDays, Check, Copy, Link2, Mail, Radio, RefreshCw, ShieldOff, Trash2, Users, Video, X } from "lucide-react";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { SphereLoader } from "@/components/Logo";
 import { useRequireAuth } from "@/components/Shell";
 import { toast } from "@/components/Toasts";
 import { JitsiMeeting } from "@/components/JitsiMeeting";
+import { ClassroomChat } from "@/components/classrooms/ClassroomChat";
+import { ClassroomMaterials } from "@/components/classrooms/ClassroomMaterials";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { useAuth } from "@/lib/store";
@@ -32,15 +34,20 @@ export default function ClassroomDetailPage() {
   const classroom = useApi<Classroom>(ready && id ? path : null);
   const isTeacher = user?.role === "instructor";
   const isAdmin = user?.role === "admin";
+  const canCreateLiveSession = isTeacher || (user?.role === "student" && classroom.data?.membershipStatus === "active");
   const members = useApi<Member[]>(ready && isTeacher && id ? `${path}/members` : null);
   const invite = useApi<Invite>(ready && (isTeacher || (isAdmin && Boolean(classroom.data?.teacherRole))) && classroom.data?.status === "active" ? `${path}/invite` : null);
-  const connection = useApi<GoogleConnection>(ready && isTeacher ? "/api/v1/classrooms/google/connection" : null);
+  const connection = useApi<GoogleConnection>(ready && canCreateLiveSession ? "/api/v1/classrooms/google/connection" : null);
   const sessions = useApi<LiveSession[]>(ready && id ? `${path}/live-sessions` : null);
   const [busy, setBusy] = useState(false);
   const [sessionBusy, setSessionBusy] = useState(false);
   const [sessionTitle, setSessionTitle] = useState("");
   const [sessionTopic, setSessionTopic] = useState("");
   const [sessionDuration, setSessionDuration] = useState(60);
+  const [sessionSchedule, setSessionSchedule] = useState(() => {
+    const date = new Date(Date.now() + 60 * 60 * 1000);
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  });
   const [notifyStudents, setNotifyStudents] = useState(true);
   const [meeting, setMeeting] = useState<MeetingCredentials | null>(null);
   const [inviteExpiry, setInviteExpiry] = useState("");
@@ -85,6 +92,9 @@ export default function ClassroomDetailPage() {
   const requests = (members.data ?? []).filter((member) => member.status === "pending");
   const students = (members.data ?? []).filter((member) => member.status === "active");
   const canViewInvite = Boolean(data.teacherRole) && (isTeacher || isAdmin);
+  const canStartLive = data.status === "active" && !isAdmin
+    && ((isTeacher && Boolean(data.teacherRole)) || (user?.role === "student" && data.membershipStatus === "active"));
+  const canAccessClassContent = data.status === "active" && (Boolean(data.teacherRole) || data.membershipStatus === "active");
   const backPath = isAdmin ? "/admin#classrooms" : "/classrooms";
 
   const action = async (label: string, method: "post" | "patch", endpoint: string, body?: unknown) => {
@@ -138,7 +148,7 @@ export default function ClassroomDetailPage() {
     const result = await api.post<{ session: LiveSession }>(`${path}/live-sessions/start`, {
       requestId, title, description: sessionTopic,
       durationMinutes: Math.min(sessionDuration, connection.data?.maxDurationMinutes ?? sessionDuration),
-      notifyStudents,
+      notifyStudents: isTeacher ? notifyStudents : true,
     });
     setSessionBusy(false);
     if (!result.success) { toast.err(result.message); return; }
@@ -147,6 +157,27 @@ export default function ClassroomDetailPage() {
     setSessionTopic("");
     await sessions.refetch();
     await joinSession(result.data.session);
+  };
+  const scheduleSession = async () => {
+    const startDate = new Date(sessionSchedule);
+    if (!Number.isFinite(startDate.getTime())) {
+      toast.err("Choose a valid date and time for the session.");
+      return;
+    }
+    const title = sessionTitle.trim() || `${data.name} - Live Session`;
+    setSessionBusy(true);
+    const result = await api.post<{ session: LiveSession }>(`${path}/live-sessions/schedule`, {
+      requestId: crypto.randomUUID(),
+      title,
+      description: sessionTopic,
+      startsAt: startDate.toISOString(),
+      durationMinutes: Math.min(sessionDuration, connection.data?.maxDurationMinutes ?? sessionDuration),
+      notifyStudents,
+    });
+    setSessionBusy(false);
+    if (!result.success) { toast.err(result.message); return; }
+    toast.ok(result.message);
+    await sessions.refetch();
   };
   const joinSession = async (session: LiveSession) => {
     const result = await api.post<MeetingCredentials>(`/api/v1/classroom-sessions/${session.id}/join`);
@@ -221,6 +252,11 @@ export default function ClassroomDetailPage() {
         )}
       </div>
 
+      {canAccessClassContent && user?.id && <div className="grid lg:grid-cols-2 gap-4">
+        <ClassroomChat classroomId={id} currentUserId={user.id} />
+        <ClassroomMaterials classroomId={id} canUpload={isTeacher && Boolean(data.teacherRole)} />
+      </div>}
+
       {isTeacher && data.teacherRole && <section className="space-y-4">
         <div className="flex items-end justify-between gap-3">
           <div><h2 className="display text-xl font-bold">Student management</h2><p className="text-sm text-muted mt-1">Review requests and manage current members.</p></div>
@@ -252,11 +288,12 @@ export default function ClassroomDetailPage() {
 
       <section className="space-y-4">
         <div className="flex items-end justify-between gap-3">
-          <div><h2 className="display text-xl font-bold flex items-center gap-2"><Radio size={18} className="text-primary" /> Live sessions</h2><p className="text-sm text-muted mt-1">Start an instant Jitsi class or join one hosted by your teacher.</p></div>
+          <div><h2 className="display text-xl font-bold flex items-center gap-2"><Radio size={18} className="text-primary" /> Live sessions</h2><p className="text-sm text-muted mt-1">Start an instant Jitsi session, join a live class, or view the instructor's schedule.</p></div>
           <button className="btn btn-ghost" disabled={sessions.loading} onClick={() => void sessions.refetch()}><RefreshCw size={14} /> Refresh</button>
         </div>
-        {isTeacher && data.teacherRole && data.status === "active" && <div className="card p-5 space-y-3">
-          {connection.error ? <p className="text-sm text-coral">{connection.error}</p>
+        {canStartLive && <div className="card p-5 space-y-3">
+          {connection.loading ? <p className="text-sm text-muted">Loading live-session settings…</p>
+            : connection.error ? <p className="text-sm text-coral">{connection.error}</p>
             : connection.data && !connection.data.enabled ? <p className="text-sm text-muted">Live sessions are currently disabled by an administrator.</p>
             : !connection.data?.configured ? <p className="text-sm text-muted">The selected Jitsi provider ({connection.data?.provider ?? "self-hosted Jitsi"}) is not configured. Ask your administrator to check the Jitsi domain and backend credentials.</p>
               : <div className="space-y-3">
@@ -269,19 +306,28 @@ export default function ClassroomDetailPage() {
                   <button className="btn btn-primary" disabled={sessionBusy} onClick={() => void startSession()}><Video size={14} /> {sessionBusy ? "Starting…" : "Start live session"}</button>
                 </div>
                 <input className="input w-full" value={sessionTopic} onChange={(event) => setSessionTopic(event.target.value)} maxLength={1000} placeholder="Optional topic" aria-label="Session topic" />
-                <label className="flex items-center gap-2 text-xs text-muted"><input type="checkbox" checked={notifyStudents} onChange={(event) => setNotifyStudents(event.target.checked)} /> Notify students in EduSphere and by email</label>
-                {connection.data.googleConfigured && (connection.data.connected
+                {isTeacher ? <label className="flex items-center gap-2 text-xs text-muted"><input type="checkbox" checked={notifyStudents} onChange={(event) => setNotifyStudents(event.target.checked)} /> Notify classroom members in EduSphere and by email</label>
+                  : <p className="text-xs text-muted">Starting a session notifies the classroom members.</p>}
+                {isTeacher && connection.data.googleConfigured && (connection.data.connected
                   ? <p className="text-xs text-muted">Optional Google Calendar invitations enabled for {connection.data.googleEmail ?? "your connected account"}.</p>
                   : <button className="text-xs text-muted underline underline-offset-2" onClick={() => void connectGoogle()}>Connect Google Calendar for optional student invitations</button>)}
-                {connection.data.connected && <button className="text-xs text-muted underline underline-offset-2" onClick={() => void disconnectGoogle()}>Disconnect Google Calendar</button>}
+                {isTeacher && connection.data.connected && <button className="text-xs text-muted underline underline-offset-2" onClick={() => void disconnectGoogle()}>Disconnect Google Calendar</button>}
+                {isTeacher && data.teacherRole && <div className="grid sm:grid-cols-[1fr_auto] gap-2">
+                  <label className="text-[11px] text-muted">Schedule for
+                    <input className="input mt-1 w-full" type="datetime-local" value={sessionSchedule}
+                      min={new Date(Date.now() + 5 * 60000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                      onChange={(event) => setSessionSchedule(event.target.value)} aria-label="Scheduled session date and time" />
+                  </label>
+                  <button className="btn btn-ghost self-end" disabled={sessionBusy} onClick={() => void scheduleSession()}><CalendarDays size={14} /> {sessionBusy ? "Scheduling…" : "Schedule session"}</button>
+                </div>}
               </div>}
         </div>}
         {sessions.error && <div className="card p-4 text-sm text-coral">{sessions.error}</div>}
         {sessions.loading ? <p className="text-sm text-muted">Loading live sessions…</p> : sessions.data?.length ? <div className="grid md:grid-cols-2 gap-3">
           {sessions.data.map((session) => <article key={session.id} className="card p-5">
             <div className="flex items-start justify-between gap-3">
-              <div><h3 className="display font-bold">{session.title}</h3><p className="text-xs text-muted mt-1">Started by {session.teacherName} · {new Date(session.startsAt.replace(" ", "T") + "Z").toLocaleString()}</p></div>
-              <span className={`badge ${session.status === "live" ? "text-mint" : "text-muted"}`}>{session.status}</span>
+              <div><h3 className="display font-bold">{session.title}</h3><p className="text-xs text-muted mt-1">{session.status === "scheduled" ? "Scheduled by" : "Started by"} {session.teacherName} · {new Date(session.startsAt.replace(" ", "T") + "Z").toLocaleString()}</p></div>
+              <span className={`badge ${session.status === "live" ? "text-mint" : session.status === "scheduled" ? "text-amber" : "text-muted"}`}>{session.status}</span>
             </div>
             {session.description && <p className="text-sm text-muted mt-3">{session.description}</p>}
             <div className="flex flex-wrap items-center justify-between gap-2 mt-4">
@@ -292,7 +338,7 @@ export default function ClassroomDetailPage() {
               </div>
             </div>
           </article>)}
-        </div> : <EmptyState icon={<Radio size={18} />} title="No live sessions yet" body={isTeacher ? "Start a live class when you are ready." : "Your teacher's live sessions will appear here."} />}
+        </div> : <EmptyState icon={<Radio size={18} />} title="No live sessions yet" body={canStartLive ? "Start an instant session or schedule an upcoming class." : "Classroom live sessions will appear here."} />}
         <p className="text-[11px] text-muted">Attendance is recorded when a member joins through EduSphere; in-meeting participation is not independently verified.</p>
       </section>
       {meeting && <JitsiMeeting sessionId={meeting.sessionId} domain={meeting.domain} roomName={meeting.roomName} jwt={meeting.jwt} displayName={user?.name ?? "EduSphere member"} fallbackUrl={meeting.url} onClose={closeMeeting} />}

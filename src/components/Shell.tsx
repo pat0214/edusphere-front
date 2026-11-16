@@ -112,7 +112,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         const previousIds = seenNotificationIds.current;
         if (previousIds) {
           for (const notification of res.data.rows) {
-            if (notification.type === "classroom_live_session" && !notification.readAt && !previousIds.has(notification.id)) {
+            if (["classroom_live_session", "classroom_live_session_scheduled"].includes(notification.type)
+              && !notification.readAt && !previousIds.has(notification.id)) {
               toast.info(`${notification.title}: ${notification.body}`);
             }
           }
